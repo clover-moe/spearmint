@@ -562,8 +562,7 @@ directory, this restriction is lifted.
 
 # Contributing
 
-Please send all patches to bugzilla (https://bugzilla.icculus.org), or as a GitHub pull request and
-submit your patch there.
+Please submit patches through GitHub pull requests.
 
 The focus for ioq3 is to develop a stable base suitable for further development
 and provide players with the same Quake 3 experience they've had for years.
