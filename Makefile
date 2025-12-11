@@ -689,6 +689,10 @@ ifdef MINGW
     WINDRES=windres
   endif
 
+  ifeq ($(WINDRES),)
+    WINDRES=windres
+  endif
+
   ifeq ($(CC),)
     $(error Cannot find a suitable cross compiler for $(PLATFORM))
   endif
