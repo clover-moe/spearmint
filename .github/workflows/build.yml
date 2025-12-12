@@ -21,13 +21,18 @@ jobs:
         path: build/*.zip
   windows:
     name: Windows
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: msys2/setup-msys2@v2
+      with:
+        release: false
+        msystem: mingw64
+        install: git make nasm mingw-w64-x86_64-gcc zip
     - name: Compile
+      shell: msys2 {0}
       run: |
-        choco install zip
-        make release -j $env:NUMBER_OF_PROCESSORS
+        make release -j $NUMBER_OF_PROCESSORS
       env:
         ARCHIVE: 1
     - uses: actions/upload-artifact@v4
