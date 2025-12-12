@@ -19,8 +19,28 @@ jobs:
       with:
         name: Linux
         path: build/*.zip
-  windows:
-    name: Windows
+  windows-x86:
+    name: Windows (x86)
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: msys2/setup-msys2@v2
+      with:
+        release: false
+        msystem: mingw32
+        install: git make nasm mingw-w64-i686-gcc zip
+    - name: Compile
+      shell: msys2 {0}
+      run: |
+        make release -j $NUMBER_OF_PROCESSORS
+      env:
+        ARCHIVE: 1
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Windows-x86
+        path: build/*.zip
+  windows-x86_64:
+    name: Windows (x86_64)
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
@@ -37,7 +57,7 @@ jobs:
         ARCHIVE: 1
     - uses: actions/upload-artifact@v4
       with:
-        name: Windows
+        name: Windows-x86_64
         path: build/*.zip
   macos:
     name: macOS
