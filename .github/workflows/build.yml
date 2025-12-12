@@ -60,18 +60,16 @@ jobs:
         name: Windows-x86_64
         path: build/*.zip
   macos:
-    name: macOS
-    runs-on: macos-14
+    name: macOS (Universal 2)
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Compile
-      run: make release -j$(sysctl -n hw.logicalcpu)
-      env:
-        ARCHIVE: 1
+      run: ./make-macosx-ub2.sh
     - uses: actions/upload-artifact@v4
       with:
-        name: macOS
-        path: build/*.zip
+        name: macOS-Universal-2
+        path: build/release-darwin-universal2/*.app/
   web:
     runs-on: ubuntu-latest
     steps:
