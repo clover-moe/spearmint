@@ -443,6 +443,31 @@ function action()
 action "${BUNDLEBINDIR}/${EXECUTABLE_NAME}"				"${IOQ3_CLIENT_ARCHS}"
 action "${BUNDLEBINDIR}/${DEDICATED_NAME}"				"${IOQ3_SERVER_ARCHS}"
 
+#
+# enable this to create multi-arch libraries and symlinks. however it doesn't
+# work well with the default zip behavior (duplicates files instead of keeping
+# symlinks).
+#
+MERGE_LIBS=0
+
+if [ $MERGE_LIBS -eq 0 ]; then
+
+# renderers
+cp ${IOQ3_RENDERER_GL1_ARCHS} "${BUNDLEBINDIR}/"
+cp ${IOQ3_RENDERER_GL2_ARCHS} "${BUNDLEBINDIR}/"
+
+# game
+cp ${IOQ3_CGAME_ARCHS} "${BUNDLEBINDIR}/${BASEDIR}/"
+cp ${IOQ3_GAME_ARCHS} "${BUNDLEBINDIR}/${BASEDIR}/"
+cp ${IOQ3_UI_ARCHS} "${BUNDLEBINDIR}/${BASEDIR}/"
+
+# missionpack
+cp ${IOQ3_MP_CGAME_ARCHS} "${BUNDLEBINDIR}/${MISSIONPACKDIR}/"
+cp ${IOQ3_MP_GAME_ARCHS} "${BUNDLEBINDIR}/${MISSIONPACKDIR}/"
+cp ${IOQ3_MP_UI_ARCHS} "${BUNDLEBINDIR}/${MISSIONPACKDIR}/"
+
+else
+
 # renderers
 action "${BUNDLEBINDIR}/${RENDERER_OPENGL1_NAME}"		"${IOQ3_RENDERER_GL1_ARCHS}"
 action "${BUNDLEBINDIR}/${RENDERER_OPENGL2_NAME}"		"${IOQ3_RENDERER_GL2_ARCHS}"
@@ -464,3 +489,5 @@ action "${BUNDLEBINDIR}/${MISSIONPACKDIR}/${UI_NAME}"		"${IOQ3_MP_UI_ARCHS}"
 symlinkArch "${CGAME}"	"${CGAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
 symlinkArch "${GAME}"	"${GAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
 symlinkArch "${UI}"		"${UI}"		""	"${BUNDLEBINDIR}/${MISSIONPACKDIR}"
+
+fi # MERGE_LIBS
