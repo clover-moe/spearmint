@@ -19,34 +19,57 @@ jobs:
       with:
         name: Linux
         path: build/*.zip
-  windows:
-    name: Windows
-    runs-on: windows-2022
+  windows-x86:
+    name: Windows (x86)
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: msys2/setup-msys2@v2
+      with:
+        release: false
+        msystem: mingw32
+        install: git make nasm mingw-w64-i686-gcc zip
     - name: Compile
+      shell: msys2 {0}
       run: |
-        choco install zip
-        make release -j $env:NUMBER_OF_PROCESSORS
+        make release -j $NUMBER_OF_PROCESSORS
       env:
         ARCHIVE: 1
     - uses: actions/upload-artifact@v4
       with:
-        name: Windows
+        name: Windows-x86
+        path: build/*.zip
+  windows-x86_64:
+    name: Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: msys2/setup-msys2@v2
+      with:
+        release: false
+        msystem: mingw64
+        install: git make nasm mingw-w64-x86_64-gcc zip
+    - name: Compile
+      shell: msys2 {0}
+      run: |
+        make release -j $NUMBER_OF_PROCESSORS
+      env:
+        ARCHIVE: 1
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Windows-x86_64
         path: build/*.zip
   macos:
-    name: macOS
-    runs-on: macos-13
+    name: macOS (Universal 2)
+    runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Compile
-      run: make release -j$(sysctl -n hw.logicalcpu)
-      env:
-        ARCHIVE: 1
+      run: ./make-macosx-ub2.sh
     - uses: actions/upload-artifact@v4
       with:
-        name: macOS
-        path: build/*.zip
+        name: macOS-Universal-2
+        path: build/release-darwin-universal2/*.app/
   web:
     runs-on: ubuntu-latest
     steps:

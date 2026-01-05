@@ -201,9 +201,15 @@ qboolean Sys_LowPhysicalMemory( void )
 Sys_Basename
 ==================
 */
-const char *Sys_Basename( char *path )
+const char *Sys_Basename( const char *path )
 {
-	return basename( path );
+	static char base[ MAX_OSPATH ] = { 0 };
+	char pathCopy[ MAX_OSPATH ];
+
+	Q_strncpyz( pathCopy, path, sizeof( pathCopy ) );
+	Q_strncpyz( base, basename( pathCopy ), sizeof( base ) );
+
+	return base;
 }
 
 /*
@@ -211,9 +217,15 @@ const char *Sys_Basename( char *path )
 Sys_Dirname
 ==================
 */
-const char *Sys_Dirname( char *path )
+const char *Sys_Dirname( const char *path )
 {
-	return dirname( path );
+	static char dir[ MAX_OSPATH ] = { 0 };
+	char pathCopy[ MAX_OSPATH ];
+
+	Q_strncpyz( pathCopy, path, sizeof( pathCopy ) );
+	Q_strncpyz( dir, dirname( pathCopy ), sizeof( dir ) );
+
+	return dir;
 }
 
 /*

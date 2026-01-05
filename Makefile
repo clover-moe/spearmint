@@ -19,6 +19,18 @@ ifeq ($(COMPILE_PLATFORM),sunos)
   COMPILE_ARCH=$(shell uname -p | sed -e 's/i.86/x86/')
 endif
 
+ifneq ($(findstring mingw,$(COMPILE_PLATFORM)),)
+  # MSYS2 environments differ from uname
+  ifeq ($(MSYSTEM_CHOST),i686-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86
+  endif
+  ifeq ($(MSYSTEM_CHOST),x86_64-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86_64
+  endif
+endif
+
 ifndef BUILD_CLIENT
   BUILD_CLIENT     =
 endif
@@ -48,8 +60,13 @@ endif
 #############################################################################
 -include Makefile.local
 
+# cygwin environment isn't supported but mingw packages can be used if installed
 ifeq ($(COMPILE_PLATFORM),cygwin)
   PLATFORM=mingw32
+endif
+# MSYS2 msys environment is cygwin without mingw packages
+ifeq ($(COMPILE_PLATFORM),msys)
+  $(error MSYS2 MSYS environment is not supported, use MSYS2 MinGW 32-bit or 64-bit instead)
 endif
 
 # detect "emmake make"
@@ -174,11 +191,7 @@ USE_CURL=1
 endif
 
 ifndef USE_CURL_DLOPEN
-  ifdef MINGW
-    USE_CURL_DLOPEN=0
-  else
-    USE_CURL_DLOPEN=1
-  endif
+USE_CURL_DLOPEN=1
 endif
 
 ifndef USE_CODEC_MP3
@@ -360,7 +373,7 @@ endif
 
 ifneq (,$(findstring "$(PLATFORM)", "linux" "gnu_kfreebsd" "kfreebsd-gnu" "gnu"))
   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
-    -pipe -DUSE_ICON -DARCH_STRING=\\\"$(ARCH)\\\"
+    -pipe -DUSE_ICON -fvisibility=hidden -DARCH_STRING=\\\"$(ARCH)\\\"
   CLIENT_CFLAGS += $(SDL_CFLAGS)
 
   OPTIMIZEVM = -O3
@@ -401,7 +414,7 @@ ifneq (,$(findstring "$(PLATFORM)", "linux" "gnu_kfreebsd" "kfreebsd-gnu" "gnu")
   endif
 
   SHLIBEXT=so
-  SHLIBCFLAGS=-fPIC -fvisibility=hidden
+  SHLIBCFLAGS=-fPIC
   SHLIBLDFLAGS=-shared $(LDFLAGS)
 
   THREAD_LIBS=-lpthread
@@ -765,16 +778,7 @@ ifdef MINGW
   ifeq ($(USE_CURL),1)
     CLIENT_CFLAGS += $(CURL_CFLAGS)
     ifneq ($(USE_CURL_DLOPEN),1)
-      ifeq ($(USE_LOCAL_HEADERS),1)
-        CLIENT_CFLAGS += -DCURL_STATICLIB
-        ifeq ($(ARCH),x86_64)
-          CLIENT_LIBS += $(LIBSDIR)/win64/libcurl.a -lcrypt32
-        else
-          CLIENT_LIBS += $(LIBSDIR)/win32/libcurl.a -lcrypt32
-        endif
-      else
-        CLIENT_LIBS += $(CURL_LIBS)
-      endif
+      CLIENT_LIBS += $(CURL_LIBS)
     endif
   endif
 
@@ -1166,6 +1170,7 @@ endif
 
 ifneq ($(BUILD_CLIENT),0)
   ifneq ($(USE_RENDERER_DLOPEN),0)
+    CLIENT_CFLAGS += -DRENDERER_PREFIX='\"'$(RENDERER_PREFIX)'\"'
     TARGETS += $(B)/$(CLIENTBIN)$(FULLBINEXT)
 
     ifneq ($(BUILD_RENDERER_OPENGL1),0)
@@ -1558,7 +1563,7 @@ targets: makedirs
 	@echo "  HAVE_VM_COMPILED: $(HAVE_VM_COMPILED)"
 	@echo "  PKG_CONFIG: $(PKG_CONFIG)"
 	@echo "  CC: $(CC)"
-ifeq ($(PLATFORM),mingw32)
+ifdef MINGW
 	@echo "  WINDRES: $(WINDRES)"
 endif
 	@echo ""
@@ -2680,7 +2685,7 @@ ifneq ($(BUILD_SERVER),0)
 endif
 
 clean: clean-debug clean-release
-ifeq ($(PLATFORM),mingw32)
+ifdef MINGW
 	@$(MAKE) -C $(NSISDIR) clean
 endif
 

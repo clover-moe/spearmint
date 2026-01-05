@@ -1,6 +1,6 @@
 <img src="https://raw.githubusercontent.com/clover-moe/spearmint/master/misc/spearmint_text.png" width="256">
 
-**Spearmint** is a fork of [ioquake3](https://github.com/ioquake/ioq3) with two main goals; 1) provide a flexible engine for creating new games and mods, 2) support features from (and running) various id Tech 3-based games.
+**Spearmint** is a fork of [Lilium Arena](https://github.com/clover-moe/lilium-arena) with two main goals; 1) provide a flexible engine for creating new games and mods, 2) support features from (and running) various id Tech 3-based games.
 
 Spearmint can be used to play Quake III Arena, Quake III: Team Arena, and Turtle Arena. Progress has been made toward running Return to Castle Wolfenstein (MP) and Wolfenstein: Enemy Territory but there is still quite a bit left before it's possible. Spearmint is not compatible with existing mods (the QVM/DLL files) or demos (game recordings) for any game.
 
@@ -57,7 +57,9 @@ Spearmint contains code from;
 
 ## Contributing
 
-Please submit all patches as a GitHub pull request.
+High quality code contributions are more helpful than rushed contributions.
+
+Reviewing pull requests is sometimes more work than a reviewer doing the work in the first place so pull requests may be disregarded.
 
 The focus for Spearmint is to develop a stable base suitable for further
 development and provide players with the same Quake 3 game play experience

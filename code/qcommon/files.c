@@ -835,6 +835,21 @@ long FS_SV_FOpenFileRead(const char *filename, fileHandle_t *fp)
 			fsh[f].handleSync = qfalse;
 		}
 
+		if (!fsh[f].handleFiles.file.o && fs_cdpath->string[0])
+		{
+			// search cd path
+			ospath = FS_BuildOSPath( fs_cdpath->string, filename, "" );
+			ospath[strlen(ospath)-1] = '\0';
+
+			if ( fs_debug->integer )
+			{
+				Com_Printf( "FS_SV_FOpenFileRead (fs_cdpath): %s\n", ospath );
+			}
+
+			fsh[f].handleFiles.file.o = Sys_FOpen( ospath, "rb" );
+			fsh[f].handleSync = qfalse;
+		}
+
 		if ( !fsh[f].handleFiles.file.o )
 		{
 			f = 0;

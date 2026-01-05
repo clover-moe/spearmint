@@ -53,6 +53,13 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include <sys/stat.h>
 #include <shlwapi.h>
 
+// include definition of PFNSHGETFOLDERPATHA
+#ifdef _MSC_VER
+#include <shlobj_core.h>
+#else
+#include <shfolder.h>
+#endif
+
 #ifndef KEY_WOW64_32KEY
 #define KEY_WOW64_32KEY 0x0200
 #endif
@@ -105,7 +112,7 @@ Sys_DefaultHomePath
 char *Sys_DefaultHomePath( void )
 {
 	TCHAR szPath[MAX_PATH];
-	FARPROC qSHGetFolderPath;
+	PFNSHGETFOLDERPATHA qSHGetFolderPath;
 	HMODULE shfolder = LoadLibrary("shfolder.dll");
 
 	if(shfolder == NULL)
@@ -116,7 +123,7 @@ char *Sys_DefaultHomePath( void )
 
 	if(!*homePath && com_homepath)
 	{
-		qSHGetFolderPath = GetProcAddress(shfolder, "SHGetFolderPathA");
+		qSHGetFolderPath = (PFNSHGETFOLDERPATHA) GetProcAddress(shfolder, "SHGetFolderPathA");
 		if(qSHGetFolderPath == NULL)
 		{
 			Com_Printf("Unable to find SHGetFolderPath in SHFolder.dll\n");
@@ -222,7 +229,7 @@ qboolean Sys_LowPhysicalMemory( void )
 Sys_Basename
 ==============
 */
-const char *Sys_Basename( char *path )
+const char *Sys_Basename( const char *path )
 {
 	static char base[ MAX_OSPATH ] = { 0 };
 	int length;
@@ -252,7 +259,7 @@ const char *Sys_Basename( char *path )
 Sys_Dirname
 ==============
 */
-const char *Sys_Dirname( char *path )
+const char *Sys_Dirname( const char *path )
 {
 	static char dir[ MAX_OSPATH ] = { 0 };
 	int length;
