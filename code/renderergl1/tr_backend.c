@@ -842,7 +842,7 @@ const void *RB_StretchPic ( const void *data ) {
 	}
 
 	shader = cmd->shader;
-	if ( shader != tess.shader ) {
+	if ( shader != tess.shader || !tess.numIndexes ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
