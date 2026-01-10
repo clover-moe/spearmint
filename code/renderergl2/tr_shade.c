@@ -1727,8 +1727,6 @@ void RB_EndSurface( void ) {
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
 	tess.firstIndex = 0;
-	tess.useCacheVao = qfalse;
-	tess.useInternalVao = qfalse;
 
 	GLimp_LogComment( "----------\n" );
 }
