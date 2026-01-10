@@ -1517,7 +1517,11 @@ void R_Register( void )
 	// ZTM: FIXME: r_useGlFog doesn't work correctly with some multistage shaders. So when r_vertexLight is 0 it's fine.
 	r_useGlFog = ri.Cvar_Get("r_useGlFog", "0", CVAR_CHEAT);
 
+#ifdef __EMSCRIPTEN__
+	r_vaoCache = ri.Cvar_Get("r_vaoCache", "0", CVAR_ARCHIVE);
+#else
 	r_vaoCache = ri.Cvar_Get("r_vaoCache", "1", CVAR_ARCHIVE);
+#endif
 
 	r_aviMotionJpegQuality = ri.Cvar_Get("r_aviMotionJpegQuality", "90", CVAR_ARCHIVE);
 	r_screenshotJpegQuality = ri.Cvar_Get("r_screenshotJpegQuality", "90", CVAR_ARCHIVE);

@@ -47,6 +47,11 @@ Cvars for API:
                                      0 - Prefer desktop OpenGL.
                                      -1 - Automatically pick (default).
 
+* `r_vaoCache`                      - This changes geometry streaming to try to reduce data transfer.
+                                   This performs well on NVIDIA but it can cut the frame rate in half on other hardware.
+                                     0 - Upload all level geometry each frame, like the original render.
+                                     1 - Cache vertexes/indexes in an Vertex Array Object (default).
+
 Cvars for simple rendering features:
 
 * `r_ext_compressed_textures`       - Automatically compress textures.

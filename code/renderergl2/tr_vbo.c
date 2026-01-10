@@ -658,6 +658,9 @@ void RB_UpdateTessVao(unsigned int attribBits)
 		qglBufferData(GL_ELEMENT_ARRAY_BUFFER, tess.vao->indexesSize, NULL, GL_DYNAMIC_DRAW);
 
 		qglBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, tess.numIndexes * sizeof(tess.indexes[0]), tess.indexes);
+
+		// ensure R_DrawElements() uses the correct glIndex_t type and size
+		tess.useCacheVao = qfalse;
 	}
 }
 
