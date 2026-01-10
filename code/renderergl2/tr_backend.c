@@ -942,7 +942,7 @@ const void* RB_Draw2dPolys( const void* data ) {
 	RB_SetGL2D();
 
 	shader = cmd->shader;
-	if ( shader != tess.shader ) {
+	if ( shader != tess.shader || !tess.numIndexes ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
@@ -1001,7 +1001,7 @@ const void *RB_RotatedPic( const void *data ) {
 	RB_SetGL2D();
 
 	shader = cmd->shader;
-	if ( shader != tess.shader ) {
+	if ( shader != tess.shader || !tess.numIndexes ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
@@ -1088,7 +1088,7 @@ const void *RB_StretchPicGradient( const void *data ) {
 	RB_SetGL2D();
 
 	shader = cmd->shader;
-	if ( shader != tess.shader ) {
+	if ( shader != tess.shader || !tess.numIndexes ) {
 		if ( tess.numIndexes ) {
 			RB_EndSurface();
 		}
