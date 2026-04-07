@@ -759,7 +759,8 @@ static void ComputeShaderColors( shaderStage_t *pStage, vec4_t baseColor, vec4_t
 	}
 
 	if (pStage->rgbGen == CGEN_CONST || pStage->rgbGen == CGEN_FOG
-	  || pStage->rgbGen == CGEN_ENTITY || pStage->rgbGen == CGEN_ONE_MINUS_ENTITY)
+	  || pStage->rgbGen == CGEN_ENTITY || pStage->rgbGen == CGEN_ONE_MINUS_ENTITY
+	  || pStage->rgbGen == CGEN_COLOR_WAVEFORM)
 	{
 		// if in greyscale rendering mode turn all color values into greyscale.
 		if(r_greyscale->integer)
