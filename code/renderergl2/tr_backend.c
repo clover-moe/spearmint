@@ -1809,7 +1809,16 @@ const void *RB_PostProcess(const void *data)
 			// Use an intermediate FBO because it can't blit to the same FBO directly
 			// and can't read from an MSAA dstFbo later.
 			RB_ToneMap(srcFbo, srcBox, tr.screenScratchFbo, srcBox, autoExposure);
-			FBO_FastBlit(tr.screenScratchFbo, srcBox, srcFbo, srcBox, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+			if (r_anaglyphMode->integer)
+			{
+				// glBlitFramebuffer() in FBO_FastBlit() doesn't respect glColorMask()
+				FBO_Blit(tr.screenScratchFbo, srcBox, NULL, srcFbo, srcBox, NULL, NULL, 0);
+			}
+			else
+			{
+				FBO_FastBlit(tr.screenScratchFbo, srcBox, srcFbo, srcBox, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			}
 		}
 		else if (r_cameraExposure->value != 0.0f)
 		{

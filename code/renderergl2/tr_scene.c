@@ -467,6 +467,23 @@ void RE_AddDynamicLightToScene( const vec3_t org, float radius, float intensity,
 	} else {
 		dl->dlshader = NULL;
 	}
+
+	if(r_greyscale->integer)
+	{
+		float scale;
+
+		scale = LUMA(dl->color[0], dl->color[1], dl->color[2]);
+		dl->color[0] = dl->color[1] = dl->color[2] = scale;
+	}
+	else if(r_greyscale->value)
+	{
+		float scale;
+
+		scale = LUMA(dl->color[0], dl->color[1], dl->color[2]);
+		dl->color[0] = LERP(dl->color[0], scale, r_greyscale->value);
+		dl->color[1] = LERP(dl->color[1], scale, r_greyscale->value);
+		dl->color[2] = LERP(dl->color[2], scale, r_greyscale->value);
+	}
 }
 
 /*
