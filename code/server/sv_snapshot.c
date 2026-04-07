@@ -441,15 +441,16 @@ For viewing through other player's eyes, clent can be something other than clien
 */
 static void SV_BuildClientSnapshot( client_t *client ) {
 	vec3_t						org;
-	clientSnapshot_t			*frame;
+	clientSnapshot_t			*frame, *oldframe;
 	snapshotEntityNumbers_t		entityNumbers;
-	int							i;
+	int							i, j;
 	sharedEntity_t				*ent;
 	entityState_t				*state;
 	svEntity_t					*svEnt;
 	sharedEntity_t				*clent;
 	int							clientNum;
 	playerState_t				*ps;
+	int							offset;
 
 	// bump the counter used to prevent double adding
 	sv.snapshotCounter++;
@@ -504,6 +505,28 @@ static void SV_BuildClientSnapshot( client_t *client ) {
 		((int *)frame->areabits)[i] = ((int *)frame->areabits)[i] ^ -1;
 	}
 
+	// avoid wrapping snapshot entities index to negative while keeping the same modulo value
+	// and lower existing first_entity for detecting rolling off the buffer
+	if ( svs.nextSnapshotEntities >= 0x7FFFFFFE - entityNumbers.numSnapshotEntities ) {
+		Com_DPrintf( "Updating snapshot entities to avoid numSnapshotEntities wrapping.\n" );
+
+		offset = ( ( svs.nextSnapshotEntities / svs.numSnapshotEntities ) - 2 ) * svs.numSnapshotEntities;
+
+		for ( i = 0; i < sv_maxclients->integer; i++ ) {
+			oldframe = svs.clients[i].frames;
+
+			for ( j = 0; j < PACKET_BACKUP; j++, oldframe++ ) {
+				if ( oldframe->first_entity <= svs.nextSnapshotEntities - svs.numSnapshotEntities ) {
+					oldframe->first_entity %= svs.numSnapshotEntities;
+				} else {
+					oldframe->first_entity -= offset;
+				}
+			}
+		}
+
+		svs.nextSnapshotEntities -= offset;
+	}
+
 	// copy the entity states out
 	frame->num_entities = 0;
 	frame->first_entity = svs.nextSnapshotEntities;
@@ -512,7 +535,7 @@ static void SV_BuildClientSnapshot( client_t *client ) {
 		state = &svs.snapshotEntities[svs.nextSnapshotEntities % svs.numSnapshotEntities];
 		*state = ent->s;
 		svs.nextSnapshotEntities++;
-		// this should never hit, map should always be restarted first in SV_Frame
+		// this should never hit
 		if ( svs.nextSnapshotEntities >= 0x7FFFFFFE ) {
 			Com_Error(ERR_FATAL, "svs.nextSnapshotEntities wrapped");
 		}

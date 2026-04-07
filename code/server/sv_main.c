@@ -1105,12 +1105,6 @@ void SV_Frame( int msec ) {
 		Cbuf_AddText( va( "map %s\n", Cvar_VariableString( "mapname" ) ) );
 		return;
 	}
-	// this can happen considerably earlier when lots of clients play and the map doesn't change
-	if ( svs.nextSnapshotEntities >= 0x7FFFFFFE - svs.numSnapshotEntities ) {
-		SV_Shutdown( "Restarting server due to numSnapshotEntities wrapping" );
-		Cbuf_AddText( va( "map %s\n", Cvar_VariableString( "mapname" ) ) );
-		return;
-	}
 
 	if( sv.restartTime && sv.time >= sv.restartTime ) {
 		sv.restartTime = 0;
