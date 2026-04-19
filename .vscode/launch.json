@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        // GDB Debugging:
+        {
+            "program": "${command:cmake.launchTargetPath}",
+            "name": "Launch (gdb)",
+            "request": "launch",
+            "args": [
+                "+set", "fs_basepath", "/home/deck/Games/gog/quake-iii-arena",
+                "+set", "fs_homepath", "/home/deck/Games/gog/quake-iii-arena",
+                "+set", "fs_game", "dkres",
+                "+set", "com_renderer", "opengl2",
+                "+set", "fs_basegame", "baseq3",
+                "+set", "developer", "1",
+                "+set", "fs_copyfiles", "1",
+                "+set", "fs_pure", "0",
+                "+set", "sv_pure", "0",
+                "+set", "r_mode", "4",
+                "+set", "r_fullscreen", "0",
+                "+set", "vm_cgame", "0",
+                "+set", "vm_game", "0"
+            ],
+            "environment": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            "type": "cppdbg",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
