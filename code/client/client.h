@@ -351,6 +351,14 @@ typedef struct {
 	qhandle_t	charSetShader;
 	qhandle_t	whiteShader;
 	qhandle_t	consoleShader;
+
+	// for scaling from 640x480
+	float screenXScaleStretch;
+	float screenYScaleStretch;
+	float screenXScale;
+	float screenYScale;
+	float screenXBias;
+	float screenYBias;
 } clientStatic_t;
 
 extern	clientStatic_t		cls;
@@ -569,7 +577,27 @@ void	SCR_DebugGraph (float value);
 
 int		SCR_GetBigStringWidth( const char *str );	// returns in virtual 640x480 coordinates
 
+// horizontal and vertical alignment flags
+// for SCR_SetScreenPlacement() / SCR_AdjustFrom640()
+#define SCR_HOR_CENTER 0x01
+#define SCR_HOR_LEFT 0x02
+#define SCR_HOR_RIGHT 0x03
+#define SCR_HOR_STRETCH 0x04
+#define SCR_HOR_MASK 0x07
+#define SCR_HOR_NATIVE 0x08
+
+#define SCR_VERT_CENTER 0x10
+#define SCR_VERT_TOP 0x20
+#define SCR_VERT_BOTTOM 0x30
+#define SCR_VERT_STRETCH 0x40
+#define SCR_VERT_MASK 0x70
+#define SCR_VERT_NATIVE 0x80
+
+void	SCR_SetScreenPlacement( int placement );
+void	SCR_SetNativeScale( float scale );
 void	SCR_AdjustFrom640( float *x, float *y, float *w, float *h );
+void	SCR_AdjustTo640( float *x, float *y, float *w, float *h );
+
 void	SCR_FillRect( float x, float y, float width, float height, 
 					 const float *color );
 void	SCR_DrawPic( float x, float y, float width, float height, qhandle_t hShader );

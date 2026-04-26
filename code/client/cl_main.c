@@ -3119,6 +3119,40 @@ void CL_ShutdownRef( void ) {
 
 /*
 ============
+CL_WindowResized
+============
+*/
+void CL_WindowResized( int width, int height ) {
+	cls.glconfig.vidWidth = width;
+	cls.glconfig.vidHeight = height;
+
+	//
+	// Scaling factors and offsets for SCR_AdjustFrom640()
+	//
+	cls.screenXScaleStretch = cls.glconfig.vidWidth * (1.0/640);
+	cls.screenYScaleStretch = cls.glconfig.vidHeight * (1.0/480);
+
+	if ( cls.glconfig.vidWidth * 480 > cls.glconfig.vidHeight * 640 ) {
+		cls.screenXScale = cls.screenXScaleStretch;
+		cls.screenYScale = cls.screenYScaleStretch;
+		// wide screen
+		cls.screenXBias = 0.5 * ( cls.glconfig.vidWidth - ( cls.glconfig.vidHeight * (640/(float)480) ) );
+		cls.screenXScale = cls.screenYScale;
+		// no narrow screen
+		cls.screenYBias = 0;
+	} else {
+		cls.screenXScale = cls.screenXScaleStretch;
+		cls.screenYScale = cls.screenYScaleStretch;
+		// narrow screen
+		cls.screenYBias = 0.5 * ( cls.glconfig.vidHeight - ( cls.glconfig.vidWidth * (480/(float)640) ) );
+		cls.screenYScale = cls.screenXScale;
+		// no wide screen
+		cls.screenXBias = 0;
+	}
+}
+
+/*
+============
 CL_InitRenderer
 ============
 */
@@ -3132,6 +3166,8 @@ void CL_InitRenderer( void ) {
 	cls.consoleShader = re.RegisterShader( "console" );
 	g_console_field_width = cls.glconfig.vidWidth / SMALLCHAR_WIDTH - 2;
 	g_consoleField.widthInChars = g_console_field_width;
+
+	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
 }
 
 /*
