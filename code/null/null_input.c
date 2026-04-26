@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
+#include "../qcommon/q_shared.h"
+
 void IN_Init( void ) {
 }
 
@@ -32,3 +34,7 @@ void IN_Shutdown( void ) {
 void IN_Restart( void ) {
 }
 
+#ifdef USE_FLEXIBLE_DISPLAY
+void IN_SyncMousePosition( void ) {
+}
+#endif

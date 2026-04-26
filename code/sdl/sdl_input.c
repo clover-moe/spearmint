@@ -45,6 +45,14 @@ static SDL_Joystick *stick = NULL;
 static qboolean mouseAvailable = qfalse;
 static qboolean mouseActive = qfalse;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+static int mouseLastX = 0;
+static int mouseLastY = 0;
+static float mouse640X = 0.0f;
+static float mouse640Y = 0.0f;
+static qboolean in_showUICursor = qfalse;
+#endif
+
 static cvar_t *in_mouse             = NULL;
 static cvar_t *in_nograb;
 
@@ -383,15 +391,22 @@ static void IN_ActivateMouse( qboolean isFullscreen )
 IN_DeactivateMouse
 ===============
 */
-static void IN_DeactivateMouse( qboolean isFullscreen )
+static void IN_DeactivateMouse( qboolean isFullscreen, qboolean showSystemCursor )
 {
 	if( !SDL_WasInit( SDL_INIT_VIDEO ) )
 		return;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	if( isFullscreen )
+		SDL_ShowCursor( SDL_FALSE );
+	else
+		SDL_ShowCursor( showSystemCursor );
+#else
 	// Always show the cursor when the mouse is disabled,
 	// but not when fullscreen
 	if( !isFullscreen )
 		SDL_ShowCursor( SDL_TRUE );
+#endif
 
 	if( !mouseAvailable )
 		return;
@@ -404,12 +419,113 @@ static void IN_DeactivateMouse( qboolean isFullscreen )
 		SDL_SetRelativeMouseMode( SDL_FALSE );
 
 		// Don't warp the mouse unless the cursor is within the window
-		if( SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_MOUSE_FOCUS )
-			SDL_WarpMouseInWindow( SDL_window, cls.glconfig.vidWidth / 2, cls.glconfig.vidHeight / 2 );
+		if( SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_MOUSE_FOCUS ) {
+#ifdef USE_FLEXIBLE_DISPLAY
+			if ( cl_flexibleDisplay->integer ) {
+				SDL_WarpMouseInWindow( SDL_window, mouseLastX, mouseLastY );
+			} else
+#endif
+			{
+				SDL_WarpMouseInWindow( SDL_window, cls.glconfig.vidWidth / 2, cls.glconfig.vidHeight / 2 );
+			}
+		}
 
 		mouseActive = qfalse;
 	}
 }
+
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+===============
+IN_UpdateMouseMenuPosition
+
+This is only used by cl_flexibleDisplay.
+===============
+*/
+void IN_UpdateMouseMenuPosition( int xabs, int yabs, int *xrelp, int *yrelp ) {
+	float x = xabs;
+	float y = yabs;
+	float fx, fy;
+	int xrel, yrel;
+
+	mouseLastX = xabs;
+	mouseLastY = yabs;
+
+	CL_AdjustToUI( &x, &y, NULL, NULL );
+
+	// show system cursor when it's outside the game area
+	if ( x < 0 || y < 0 || x >= SCREEN_WIDTH || y >= SCREEN_HEIGHT ) {
+		in_showUICursor = qtrue;
+	} else {
+		in_showUICursor = qfalse;
+	}
+
+	if ( x < 0 ) {
+		x = 0;
+	}
+	if ( y < 0 ) {
+		y = 0;
+	}
+	if ( x >= SCREEN_WIDTH ) {
+		x = SCREEN_WIDTH-1;
+	}
+	if ( y >= SCREEN_HEIGHT ) {
+		y = SCREEN_HEIGHT-1;
+	}
+
+	xrel = floorf( x - mouse640X );
+	yrel = floorf( y - mouse640Y );
+
+	// lost fraction
+	fx = ( x - mouse640X ) - xrel;
+	fy = ( y - mouse640Y ) - yrel;
+
+	mouse640X = x - fx;
+	mouse640Y = y - fy;
+
+	*xrelp = xrel;
+	*yrelp = yrel;
+}
+
+/*
+===============
+IN_SyncMousePosition
+
+cl_flexibleDisplay tells the UI that it's 640x480. This results in
+well defined behavior for cursor clamping and it's possible to use
+absolute mouse input for the menu.
+===============
+*/
+void IN_SyncMousePosition( void ) {
+	int x, y, xrel, yrel;
+
+	if ( !cl_flexibleDisplay->integer ) {
+		return;
+	}
+
+	// set UI's menu cursor position to 0,0
+	// (this is only reliable when the UI's vidWidth/vidHeight is 4:3 aspect)
+	VM_Call( uivm, UI_MOUSE_EVENT, -10000, -10000 );
+
+	mouse640X = 0;
+	mouse640Y = 0;
+
+	if ( mouseActive ) {
+		// ignore the real mouse position if in relative mode
+		x = mouseLastX;
+		y = mouseLastY;
+	} else {
+		SDL_GetMouseState( &x, &y );
+		mouseLastX = x;
+		mouseLastY = y;
+	}
+
+	IN_UpdateMouseMenuPosition( x, y, &xrel, &yrel );
+	if ( xrel != 0 || yrel != 0 ) {
+		VM_Call( uivm, UI_MOUSE_EVENT, xrel, yrel );
+	}
+}
+#endif
 
 // We translate axes movement into keypresses
 static int joy_keys[16] = {
@@ -1084,6 +1200,22 @@ static void IN_ProcessEvents( void )
 						break;
 					Com_QueueEvent( in_eventTime, SE_MOUSE, e.motion.xrel, e.motion.yrel, 0, NULL );
 				}
+#ifdef USE_FLEXIBLE_DISPLAY
+				else if ( cl_flexibleDisplay->integer )
+				{
+					int xrel;
+					int yrel;
+
+					IN_UpdateMouseMenuPosition( e.motion.x, e.motion.y, &xrel, &yrel );
+
+					if( !xrel && !yrel )
+						break;
+					if ( Key_GetCatcher( ) & KEYCATCH_UI ) {
+						Com_QueueEvent( in_eventTime, SE_MOUSE, xrel, yrel, 0, NULL );
+					}
+					break;
+				}
+#endif
 				break;
 
 			case SDL_MOUSEBUTTONDOWN:
@@ -1219,18 +1351,24 @@ void IN_Frame( void )
 	if( !cls.glconfig.isFullscreen && ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) )
 	{
 		// Console is down in windowed mode
-		IN_DeactivateMouse( cls.glconfig.isFullscreen );
+		IN_DeactivateMouse( cls.glconfig.isFullscreen, qtrue );
 	}
 	else if( !cls.glconfig.isFullscreen && loading )
 	{
 		// Loading in windowed mode
-		IN_DeactivateMouse( cls.glconfig.isFullscreen );
+		IN_DeactivateMouse( cls.glconfig.isFullscreen, qtrue );
 	}
 	else if( !( SDL_GetWindowFlags( SDL_window ) & SDL_WINDOW_INPUT_FOCUS ) )
 	{
 		// Window not got focus
-		IN_DeactivateMouse( cls.glconfig.isFullscreen );
+		IN_DeactivateMouse( cls.glconfig.isFullscreen, qtrue );
 	}
+#ifdef USE_FLEXIBLE_DISPLAY
+	else if ( cl_flexibleDisplay->integer && ( Key_GetCatcher( ) & KEYCATCH_UI ) )
+	{
+		IN_DeactivateMouse( cls.glconfig.isFullscreen, in_showUICursor );
+	}
+#endif
 	else
 		IN_ActivateMouse( cls.glconfig.isFullscreen );
 
@@ -1282,7 +1420,11 @@ void IN_Init( void *windowData )
 	SDL_StartTextInput( );
 
 	mouseAvailable = ( in_mouse->value != 0 );
-	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0 );
+	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0, qtrue );
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	SDL_GetMouseState( &mouseLastX, &mouseLastY );
+#endif
 
 	appState = SDL_GetWindowFlags( SDL_window );
 	Cvar_SetValue( "com_unfocused",	!( appState & SDL_WINDOW_INPUT_FOCUS ) );
@@ -1301,7 +1443,7 @@ void IN_Shutdown( void )
 {
 	SDL_StopTextInput( );
 
-	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0 );
+	IN_DeactivateMouse( Cvar_VariableIntegerValue( "r_fullscreen" ) != 0, qtrue );
 	mouseAvailable = qfalse;
 
 	IN_ShutdownJoystick( );

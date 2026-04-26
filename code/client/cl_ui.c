@@ -596,12 +596,10 @@ static void CL_GetGlconfig( glconfig_t *config ) {
 #ifdef USE_FLEXIBLE_DISPLAY
 /*
 ====================
-CL_AdjustFromUI
-
-This is only called if cl_flexibleDisplay is enabled.
+CL_GetUIScreenPlacement
 ====================
 */
-void CL_AdjustFromUI( float *x, float *y, float *w, float *h ) {
+static int CL_GetUIScreenPlacement( void ) {
 	int placement;
 
 	// baseq3 was stretched vertically but centered horizontally in
@@ -612,8 +610,35 @@ void CL_AdjustFromUI( float *x, float *y, float *w, float *h ) {
 		placement = SCR_VERT_STRETCH | SCR_HOR_CENTER;
 	}
 
+	return placement;
+}
+
+/*
+====================
+CL_AdjustFromUI
+
+This is only called if cl_flexibleDisplay is enabled.
+====================
+*/
+void CL_AdjustFromUI( float *x, float *y, float *w, float *h ) {
+	int placement = CL_GetUIScreenPlacement();
+
 	SCR_SetScreenPlacement( placement );
 	SCR_AdjustFrom640( x, y, w, h );
+}
+
+/*
+================
+CL_AdjustToUI
+
+Convert native coords to UI coords.
+================
+*/
+void CL_AdjustToUI( float *x, float *y, float *w, float *h ) {
+	int placement = CL_GetUIScreenPlacement();
+
+	SCR_SetScreenPlacement( placement );
+	SCR_AdjustTo640( x, y, w, h );
 }
 #endif
 

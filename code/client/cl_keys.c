@@ -1300,6 +1300,10 @@ void CL_KeyDownEvent( int key, unsigned time )
 				S_StopAllSounds();
 				VM_Call( uivm, UI_SET_ACTIVE_MENU, UIMENU_MAIN );
 			}
+
+#ifdef USE_FLEXIBLE_DISPLAY
+			cls.syncUICursor = qtrue;
+#endif
 			return;
 		}
 

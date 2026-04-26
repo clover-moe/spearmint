@@ -1457,6 +1457,9 @@ int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBi
 		// close the menu
 		if ( uivm ) {
 			VM_Call( uivm, UI_SET_ACTIVE_MENU, UIMENU_NONE );
+#ifdef USE_FLEXIBLE_DISPLAY
+			cls.syncUICursor = qtrue;
+#endif
 		}
 	} else {
 		cinTable[currentHandle].playonwalls = cl_inGameVideo->integer;

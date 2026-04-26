@@ -309,6 +309,9 @@ typedef struct {
 
 typedef struct {
 	qboolean	cddialog;			// bring up the cd needed dialog next frame
+#ifdef USE_FLEXIBLE_DISPLAY
+	qboolean	syncUICursor;		// sync mouse cursor position in UI next frame
+#endif
 
 	// when the server clears the hunk, all of these must be restarted
 	qboolean	rendererStarted;
@@ -660,7 +663,10 @@ int Key_GetCatcher( void );
 void Key_SetCatcher( int catcher );
 void LAN_LoadCachedServers( void );
 void LAN_SaveServersToCache( void );
+#ifdef USE_FLEXIBLE_DISPLAY
 void CL_AdjustFromUI( float *x, float *y, float *w, float *h );
+void CL_AdjustToUI( float *x, float *y, float *w, float *h );
+#endif
 
 
 //

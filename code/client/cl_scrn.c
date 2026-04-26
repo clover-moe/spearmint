@@ -663,6 +663,9 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 			// force menu up
 			S_StopAllSounds();
 			VM_Call( uivm, UI_SET_ACTIVE_MENU, UIMENU_MAIN );
+#ifdef USE_FLEXIBLE_DISPLAY
+			cls.syncUICursor = qtrue;
+#endif
 			break;
 		case CA_CONNECTING:
 		case CA_CHALLENGING:
@@ -696,7 +699,17 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	// the menu draws next
 	if ( Key_GetCatcher( ) & KEYCATCH_UI && uivm ) {
+#ifdef USE_FLEXIBLE_DISPLAY
+		if ( cls.syncUICursor ) {
+			IN_SyncMousePosition();
+			cls.syncUICursor = qfalse;
+		}
+#endif
 		VM_Call( uivm, UI_REFRESH, cls.realtime );
+	} else {
+#ifdef USE_FLEXIBLE_DISPLAY
+		cls.syncUICursor = qtrue;
+#endif
 	}
 
 	// console draws next
