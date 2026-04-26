@@ -311,6 +311,7 @@ static void SCR_DrawChar( int x, int y, float size, int ch ) {
 void SCR_DrawSmallChar( int x, int y, int ch ) {
 	int row, col;
 	float frow, fcol;
+	float	ax, ay, aw, ah;
 	float size;
 
 	ch &= 255;
@@ -323,6 +324,12 @@ void SCR_DrawSmallChar( int x, int y, int ch ) {
 		return;
 	}
 
+	ax = x;
+	ay = y;
+	aw = SMALLCHAR_WIDTH;
+	ah = SMALLCHAR_HEIGHT;
+	SCR_AdjustFrom640( &ax, &ay, &aw, &ah );
+
 	row = ch>>4;
 	col = ch&15;
 
@@ -330,7 +337,7 @@ void SCR_DrawSmallChar( int x, int y, int ch ) {
 	fcol = col*0.0625;
 	size = 0.0625;
 
-	re.DrawStretchPic( x, y, SMALLCHAR_WIDTH, SMALLCHAR_HEIGHT,
+	re.DrawStretchPic( ax, ay, aw, ah,
 					   fcol, frow, 
 					   fcol + size, frow + size, 
 					   cls.charSetShader );

@@ -58,6 +58,8 @@ console_t	con;
 cvar_t		*con_conspeed;
 cvar_t		*con_autoclear;
 cvar_t		*con_notifytime;
+cvar_t		*con_native;
+cvar_t		*con_scale;
 
 #define	DEFAULT_CONSOLE_WIDTH	78
 
@@ -359,6 +361,10 @@ void Con_Init (void) {
 	con_notifytime = Cvar_Get ("con_notifytime", "3", 0);
 	con_conspeed = Cvar_Get ("scr_conspeed", "3", 0);
 	con_autoclear = Cvar_Get("con_autoclear", "1", CVAR_ARCHIVE);
+	con_native = Cvar_Get("con_native", "0", CVAR_ARCHIVE);
+	con_scale = Cvar_Get("con_scale", "1", CVAR_ARCHIVE);
+	Cvar_CheckRange( con_scale, 1, 8, qfalse );
+	con_scale->modified = qfalse;
 
 	Field_Clear( &g_consoleField );
 	g_consoleField.widthInChars = g_console_field_width;
@@ -531,6 +537,24 @@ DRAWING
 
 /*
 ================
+Con_SetTextPlacement
+================
+*/
+void Con_SetTextPlacement( void ) {
+	int placement = 0;
+
+	if ( con_native->integer ) {
+		placement |= SCR_VERT_NATIVE | SCR_HOR_NATIVE;
+	}
+
+	placement |= SCR_VERT_TOP | SCR_HOR_LEFT;
+
+	SCR_SetScreenPlacement( placement );
+	SCR_SetNativeScale( con_scale->value );
+}
+
+/*
+================
 Con_DrawInput
 
 Draw the editline after a ] prompt
@@ -569,6 +593,17 @@ void Con_DrawNotify (void)
 	int		time;
 	int		skip;
 	int		currentColor;
+	int		conXOffset;
+
+	if ( con_native->integer ) {
+		conXOffset = cl_conXOffset->integer / con_scale->value;
+	} else {
+		// convert cl_conXOffset from native coords to 640 coords to match
+		// the original Quake 3 behavior
+		conXOffset = cl_conXOffset->integer / cls.screenXScale;
+	}
+
+	Con_SetTextPlacement();
 
 	currentColor = 7;
 	re.SetColor( g_color_table[currentColor] );
@@ -598,7 +633,7 @@ void Con_DrawNotify (void)
 				currentColor = ColorIndexForNumber( text[x]>>8 );
 				re.SetColor( g_color_table[currentColor] );
 			}
-			SCR_DrawSmallChar( cl_conXOffset->integer + con.xadjust + (x+1)*SMALLCHAR_WIDTH, v, text[x] & 0xff );
+			SCR_DrawSmallChar( conXOffset + con.xadjust + (x+1)*SMALLCHAR_WIDTH, v, text[x] & 0xff );
 		}
 
 		v += SMALLCHAR_HEIGHT;
@@ -613,6 +648,8 @@ void Con_DrawNotify (void)
 	// draw the chat line
 	if ( Key_GetCatcher( ) & KEYCATCH_MESSAGE )
 	{
+		SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+
 		if (chat_team)
 		{
 			SCR_DrawBigString (8, v, "say_team:", 1.0f, qfalse );
@@ -646,13 +683,25 @@ void Con_DrawSolidConsole( float frac ) {
 //	qhandle_t		conShader;
 	int				currentColor;
 	vec4_t			color;
+	int				vidWidth;
+	int				vidHeight;
 
-	lines = cls.glconfig.vidHeight * frac;
+	if ( con_native->integer ) {
+		vidWidth = cls.glconfig.vidWidth / con_scale->value;
+		vidHeight = cls.glconfig.vidHeight / con_scale->value;
+	} else {
+		vidWidth = cls.glconfig.vidWidth / cls.screenXScale;
+		vidHeight = cls.glconfig.vidHeight / cls.screenYScale;
+	}
+
+	lines = vidHeight * frac;
 	if (lines <= 0)
 		return;
 
-	if (lines > cls.glconfig.vidHeight )
-		lines = cls.glconfig.vidHeight;
+	if (lines > vidHeight )
+		lines = vidHeight;
+
+	SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
 
 	// on wide screens, we will center the text
 	con.xadjust = 0;
@@ -674,6 +723,8 @@ void Con_DrawSolidConsole( float frac ) {
 	SCR_FillRect( 0, y, SCREEN_WIDTH, 2, color );
 
 
+	Con_SetTextPlacement();
+
 	// draw the version number
 
 	re.SetColor( g_color_table[ColorIndex(COLOR_RED)] );
@@ -681,7 +732,7 @@ void Con_DrawSolidConsole( float frac ) {
 	i = strlen( Q3_VERSION );
 
 	for (x=0 ; x<i ; x++) {
-		SCR_DrawSmallChar( cls.glconfig.vidWidth - ( i - x + 1 ) * SMALLCHAR_WIDTH,
+		SCR_DrawSmallChar( vidWidth - ( i - x + 1 ) * SMALLCHAR_WIDTH,
 			lines - SMALLCHAR_HEIGHT, Q3_VERSION[x] );
 	}
 
@@ -750,6 +801,13 @@ Con_DrawConsole
 ==================
 */
 void Con_DrawConsole( void ) {
+	if ( con_scale->modified ) {
+		if ( !con_native->integer ) {
+			Com_Printf( "con_scale requires con_native cvar to be set to 1\n" );
+		}
+		con_scale->modified = qfalse;
+	}
+
 	// check for console width changes from a vid mode change
 	Con_CheckResize ();
 
