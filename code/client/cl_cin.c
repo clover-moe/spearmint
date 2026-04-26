@@ -125,6 +125,7 @@ typedef struct {
 	int					playonwalls;
 	byte*				buf;
 	long				drawX, drawY;
+	int					module;
 } cin_cache;
 
 static cinematics_t		cin;
@@ -1404,7 +1405,7 @@ e_status CIN_RunCinematic (int handle)
 CIN_PlayCinematic
 ==================
 */
-int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBits ) {
+int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBits, int module ) {
 	unsigned short RoQID;
 	char	name[MAX_OSPATH];
 	int		i;
@@ -1441,7 +1442,7 @@ int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBi
 		return -1;
 	}
 
-	CIN_SetExtents(currentHandle, x, y, w, h);
+	CIN_SetExtents(currentHandle, x, y, w, h, module);
 	CIN_SetLooping(currentHandle, (systemBits & CIN_loop)!=0);
 
 	cinTable[currentHandle].CIN_HEIGHT = DEFAULT_CIN_HEIGHT;
@@ -1492,12 +1493,13 @@ int CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBi
 	return -1;
 }
 
-void CIN_SetExtents (int handle, int x, int y, int w, int h) {
+void CIN_SetExtents (int handle, int x, int y, int w, int h, int module) {
 	if (handle < 0 || handle>= MAX_VIDEO_HANDLES || cinTable[handle].status == FMV_EOF) return;
 	cinTable[handle].xpos = x;
 	cinTable[handle].ypos = y;
 	cinTable[handle].width = w;
 	cinTable[handle].height = h;
+	cinTable[handle].module = module;
 	cinTable[handle].dirty = qtrue;
 }
 
@@ -1586,7 +1588,28 @@ void CIN_DrawCinematic (int handle) {
 	w = cinTable[handle].width;
 	h = cinTable[handle].height;
 	buf = cinTable[handle].buf;
-	SCR_AdjustFrom640( &x, &y, &w, &h );
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer ) {
+		switch ( cinTable[handle].module ) {
+			case CIN_UI:
+				CL_AdjustFromUI( &x, &y, &w, &h );
+				break;
+			case CIN_CGAME:
+				CL_AdjustFromCGame( &x, &y, &w, &h );
+				break;
+			case CIN_CLIENT:
+			default:
+				SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+				SCR_AdjustFrom640( &x, &y, &w, &h );
+				break;
+		}
+	} else
+#endif
+	{
+		SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+		SCR_AdjustFrom640( &x, &y, &w, &h );
+	}
 
 	if (cinTable[handle].dirty && (cinTable[handle].CIN_WIDTH != cinTable[handle].drawX || cinTable[handle].CIN_HEIGHT != cinTable[handle].drawY)) {
 		int *buf2;
@@ -1626,7 +1649,7 @@ void CL_PlayCinematic_f(void) {
 
 	S_StopAllSounds ();
 
-	CL_handle = CIN_PlayCinematic( arg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, bits );
+	CL_handle = CIN_PlayCinematic( arg, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, bits, CIN_CLIENT );
 	if (CL_handle >= 0) {
 		do {
 			SCR_RunCinematic();

@@ -51,7 +51,30 @@ CL_GetGlconfig
 */
 void CL_GetGlconfig( glconfig_t *glconfig ) {
 	*glconfig = cls.glconfig;
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer ) {
+		glconfig->vidWidth = 640;
+		glconfig->vidHeight = 480;
+	}
+#endif
 }
+
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+====================
+CL_AdjustFromCGame
+
+This is only called if cl_flexibleDisplay is enabled.
+====================
+*/
+void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
+	int placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+
+	SCR_SetScreenPlacement( placement );
+	SCR_AdjustFrom640( x, y, w, h );
+}
+#endif
 
 
 /*
@@ -563,12 +586,48 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		re.AddAdditiveLightToScene( VMA(1), VMF(2), VMF(3), VMF(4), VMF(5) );
 		return 0;
 	case CG_R_RENDERSCENE:
+#ifdef USE_FLEXIBLE_DISPLAY
+		if ( cl_flexibleDisplay->integer ) {
+			refdef_t fd;
+			float x, y, width, height;
+
+			memcpy( &fd, VMA(1), sizeof( refdef_t ) );
+
+			x = fd.x;
+			y = fd.y;
+			width = fd.width;
+			height = fd.height;
+
+			CL_AdjustFromCGame( &x, &y, &width, &height );
+
+			fd.x = (int)x;
+			fd.y = (int)y;
+			fd.width = (int)(width + 0.5f);
+			fd.height = (int)(height + 0.5f);
+
+			re.RenderScene( &fd );
+			return 0;
+		}
+#endif
 		re.RenderScene( VMA(1) );
 		return 0;
 	case CG_R_SETCOLOR:
 		re.SetColor( VMA(1) );
 		return 0;
 	case CG_R_DRAWSTRETCHPIC:
+#ifdef USE_FLEXIBLE_DISPLAY
+		if ( cl_flexibleDisplay->integer ) {
+			float x = VMF(1);
+			float y = VMF(2);
+			float width = VMF(3);
+			float height = VMF(4);
+
+			CL_AdjustFromCGame( &x, &y, &width, &height );
+
+			re.DrawStretchPic( x, y, width, height, VMF(5), VMF(6), VMF(7), VMF(8), args[9] );
+			return 0;
+		}
+#endif
 		re.DrawStretchPic( VMF(1), VMF(2), VMF(3), VMF(4), VMF(5), VMF(6), VMF(7), VMF(8), args[9] );
 		return 0;
 	case CG_R_MODELBOUNDS:
@@ -657,7 +716,10 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return 0;
 
 	case CG_CIN_PLAYCINEMATIC:
-	  return CIN_PlayCinematic(VMA(1), args[2], args[3], args[4], args[5], args[6]);
+#ifdef USE_FLEXIBLE_DISPLAY
+	  // NOTE: position is offset by cl_flexibleDisplay
+#endif
+	  return CIN_PlayCinematic(VMA(1), args[2], args[3], args[4], args[5], args[6], CIN_CGAME);
 
 	case CG_CIN_STOPCINEMATIC:
 	  return CIN_StopCinematic(args[1]);
@@ -670,7 +732,10 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 	  return 0;
 
 	case CG_CIN_SETEXTENTS:
-	  CIN_SetExtents(args[1], args[2], args[3], args[4], args[5]);
+#ifdef USE_FLEXIBLE_DISPLAY
+	  // NOTE: position is offset by cl_flexibleDisplay
+#endif
+	  CIN_SetExtents(args[1], args[2], args[3], args[4], args[5], CIN_CGAME);
 	  return 0;
 
 	case CG_R_REMAP_SHADER:

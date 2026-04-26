@@ -595,6 +595,28 @@ void Con_DrawNotify (void)
 	int		currentColor;
 	int		conXOffset;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer ) {
+		if ( 0 ) {
+			// this matches the cl_flexibleDisplay 0 code path but it has
+			// resolution dependent behavior. higher resolutions end up
+			// with notify text on top of the Team Arena voice head.
+			if ( con_native->integer ) {
+				conXOffset = cl_conXOffset->integer * cls.screenXScale / con_scale->value;
+			} else {
+				conXOffset = cl_conXOffset->integer;
+			}
+		} else {
+			// the HUD is stretched so stretch the x offset position to
+			// to avoid text over Team Arena voice head
+			if ( con_native->integer ) {
+				conXOffset = cl_conXOffset->integer * cls.screenXScaleStretch / con_scale->value;
+			} else {
+				conXOffset = cl_conXOffset->integer * cls.screenXScaleStretch / cls.screenXScale;
+			}
+		}
+	} else
+#endif
 	if ( con_native->integer ) {
 		conXOffset = cl_conXOffset->integer / con_scale->value;
 	} else {

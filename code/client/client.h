@@ -460,6 +460,10 @@ extern	cvar_t	*cl_voip;
 #define VOIP_MAX_PACKET_SAMPLES		( VOIP_MAX_FRAME_SAMPLES * VOIP_MAX_PACKET_FRAMES )
 #endif
 
+#ifdef USE_FLEXIBLE_DISPLAY
+extern	cvar_t	*cl_flexibleDisplay;
+#endif
+
 //=================================================
 
 //
@@ -613,15 +617,20 @@ void	SCR_DrawSmallChar( int x, int y, int ch );
 // cl_cin.c
 //
 
+// module that started the cinematic
+#define CIN_CLIENT 1
+#define CIN_UI 2
+#define CIN_CGAME 3
+
 void CL_PlayCinematic_f( void );
 void SCR_DrawCinematic (void);
 void SCR_RunCinematic (void);
 void SCR_StopCinematic (void);
-int CIN_PlayCinematic( const char *arg0, int xpos, int ypos, int width, int height, int bits);
+int CIN_PlayCinematic( const char *arg0, int xpos, int ypos, int width, int height, int bits, int module);
 e_status CIN_StopCinematic(int handle);
 e_status CIN_RunCinematic (int handle);
 void CIN_DrawCinematic (int handle);
-void CIN_SetExtents (int handle, int x, int y, int w, int h);
+void CIN_SetExtents (int handle, int x, int y, int w, int h, int module);
 void CIN_SetLooping (int handle, qboolean loop);
 void CIN_UploadCinematic(int handle);
 void CIN_CloseAllVideos(void);
@@ -636,6 +645,7 @@ void CL_CGameRendering( stereoFrame_t stereo );
 void CL_SetCGameTime( void );
 void CL_FirstSnapshot( void );
 void CL_ShaderStateChanged(void);
+void CL_AdjustFromCGame( float *x, float *y, float *w, float *h );
 
 //
 // cl_ui.c
@@ -646,6 +656,7 @@ int Key_GetCatcher( void );
 void Key_SetCatcher( int catcher );
 void LAN_LoadCachedServers( void );
 void LAN_SaveServersToCache( void );
+void CL_AdjustFromUI( float *x, float *y, float *w, float *h );
 
 
 //

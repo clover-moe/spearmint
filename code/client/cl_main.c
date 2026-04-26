@@ -122,6 +122,10 @@ cvar_t	*cl_consoleKeys;
 
 cvar_t	*cl_rate;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+cvar_t	*cl_flexibleDisplay;
+#endif
+
 clientActive_t		cl;
 clientConnection_t	clc;
 clientStatic_t		cls;
@@ -3167,6 +3171,11 @@ void CL_InitRenderer( void ) {
 	g_console_field_width = cls.glconfig.vidWidth / SMALLCHAR_WIDTH - 2;
 	g_consoleField.widthInChars = g_console_field_width;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	// update latched value at vid_restart
+	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
+#endif
+
 	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
 }
 
@@ -3227,6 +3236,10 @@ void *CL_RefMalloc( int size ) {
 
 int CL_ScaledMilliseconds(void) {
 	return Sys_Milliseconds()*com_timescale->value;
+}
+
+int CL_Ref_CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBits ) {
+	return CIN_PlayCinematic( arg, x, y, w, h, systemBits, CIN_CLIENT );
 }
 
 /*
@@ -3309,7 +3322,7 @@ void CL_InitRef( void ) {
 	// cinematic stuff
 
 	ri.CIN_UploadCinematic = CIN_UploadCinematic;
-	ri.CIN_PlayCinematic = CIN_PlayCinematic;
+	ri.CIN_PlayCinematic = CL_Ref_CIN_PlayCinematic;
 	ri.CIN_RunCinematic = CIN_RunCinematic;
   
 	ri.CL_WriteAVIVideoFrame = CL_WriteAVIVideoFrame;
@@ -3697,6 +3710,10 @@ void CL_Init( void ) {
 	Cvar_Get ("cg_viewsize", "100", CVAR_ARCHIVE );
 	// Make sure cg_stereoSeparation is zero as that variable is deprecated and should not be used anymore.
 	Cvar_Get ("cg_stereoSeparation", "0", CVAR_ROM);
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
+#endif
 
 	//
 	// register our commands
