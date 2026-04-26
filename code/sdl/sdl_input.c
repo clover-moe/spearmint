@@ -1147,10 +1147,19 @@ static void IN_ProcessEvents( void )
 							Cvar_SetValue( "r_customheight", height );
 							Cvar_Set( "r_mode", "-1" );
 
-							// Wait until user stops dragging for 1 second, so
-							// we aren't constantly recreating the GL context while
-							// he tries to drag...
-							vidRestartTime = Sys_Milliseconds( ) + 1000;
+#ifdef USE_FLEXIBLE_DISPLAY
+							if ( cl_flexibleDisplay->integer && re.ResizeWindow && re.ResizeWindow( width, height ) )
+							{
+								CL_WindowResized( width, height );
+							}
+							else
+#endif
+							{
+								// Wait until user stops dragging for 1 second, so
+								// we aren't constantly recreating the GL context while
+								// he tries to drag...
+								vidRestartTime = Sys_Milliseconds( ) + 1000;
+							}
 						}
 						break;
 

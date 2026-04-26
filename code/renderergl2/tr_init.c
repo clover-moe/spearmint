@@ -1716,5 +1716,10 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 
 	re.TakeVideoFrame = RE_TakeVideoFrame;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	// TODO: This needs to resize all screen-sized FBOs and attached images.
+	re.ResizeWindow = NULL; //GLimp_ResizeWindow;#endif
+#endif
+
 	return &re;
 }

@@ -499,6 +499,10 @@ int CL_ServerStatus( char *serverAddress, char *serverStatusString, int maxLen )
 
 qboolean CL_CheckPaused(void);
 
+#ifdef USE_FLEXIBLE_DISPLAY
+void CL_WindowResized( int width, int height );
+#endif
+
 //
 // cl_input
 //

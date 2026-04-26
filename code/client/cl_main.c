@@ -3339,6 +3339,18 @@ void CL_InitRef( void ) {
 	ri.Sys_LowPhysicalMemory = Sys_LowPhysicalMemory;
 
 	ret = GetRefAPI( REF_API_VERSION, &ri );
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( ret ) {
+		re = *ret;
+	} else {
+		// support older renderer API without re.ResizeWindow
+		ret = GetRefAPI( 8, &ri );
+		if ( ret ) {
+			memset( &re, 0, sizeof( re ) );
+			memcpy( &re, ret, sizeof( *ret ) - sizeof( void * ) );
+		}
+	}
+#endif
 
 #if defined __USEA3D && defined __A3D_GEOM
 	hA3Dg_ExportRenderGeom (ret);
@@ -3350,7 +3362,9 @@ void CL_InitRef( void ) {
 		Com_Error (ERR_FATAL, "Couldn't initialize refresh" );
 	}
 
+#ifndef USE_FLEXIBLE_DISPLAY
 	re = *ret;
+#endif
 
 	// unpause so the cgame definitely gets a snapshot and renders a frame
 	Cvar_Set( "cl_paused", "0" );

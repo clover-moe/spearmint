@@ -24,7 +24,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "tr_types.h"
 
+#ifdef USE_FLEXIBLE_DISPLAY
+#define	REF_API_VERSION		9
+#else
 #define	REF_API_VERSION		8
+#endif
 
 //
 // these are the functions exported by the refresh module
@@ -99,6 +103,10 @@ typedef struct {
 	qboolean (*inPVS)( const vec3_t p1, const vec3_t p2 );
 
 	void (*TakeVideoFrame)( int h, int w, byte* captureBuffer, byte *encodeBuffer, qboolean motionJpeg );
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	qboolean	(*ResizeWindow)( int width, int height );
+#endif
 } refexport_t;
 
 //

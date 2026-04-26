@@ -872,6 +872,25 @@ static qboolean GLimp_StartDriverAndSetMode(int mode, qboolean fullscreen, qbool
 }
 
 
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+===============
+GLimp_ResizeWindow
+
+Window has been resized, update glconfig
+===============
+*/
+qboolean GLimp_ResizeWindow( int width, int height )
+{
+	glConfig.vidWidth = width;
+	glConfig.vidHeight = height;
+	glConfig.windowAspect = (float)glConfig.vidWidth / (float)glConfig.vidHeight;
+
+	return qtrue;
+}
+#endif
+
+
 /*
 ===============
 GLimp_InitExtensions
@@ -1069,7 +1088,11 @@ void GLimp_Init( qboolean fixedFunction )
 
 	r_allowSoftwareGL = ri.Cvar_Get( "r_allowSoftwareGL", "0", CVAR_LATCH );
 	r_sdlDriver = ri.Cvar_Get( "r_sdlDriver", "", CVAR_ROM );
+#ifdef USE_FLEXIBLE_DISPLAY
+	r_allowResize = ri.Cvar_Get( "r_allowResize", "1", CVAR_ARCHIVE | CVAR_LATCH );
+#else
 	r_allowResize = ri.Cvar_Get( "r_allowResize", "0", CVAR_ARCHIVE | CVAR_LATCH );
+#endif
 	r_centerWindow = ri.Cvar_Get( "r_centerWindow", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_preferOpenGLES = ri.Cvar_Get( "r_preferOpenGLES", "-1", CVAR_ARCHIVE | CVAR_LATCH );
 

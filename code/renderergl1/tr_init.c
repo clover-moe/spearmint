@@ -1384,5 +1384,9 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 
 	re.TakeVideoFrame = RE_TakeVideoFrame;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	re.ResizeWindow = GLimp_ResizeWindow;
+#endif
+
 	return &re;
 }
