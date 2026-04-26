@@ -1137,12 +1137,6 @@ static void IN_ProcessEvents( void )
 							width = e.window.data1;
 							height = e.window.data2;
 
-							// ignore this event on fullscreen
-							if( cls.glconfig.isFullscreen )
-							{
-								break;
-							}
-
 							// check if size actually changed
 							if( cls.glconfig.vidWidth == width && cls.glconfig.vidHeight == height )
 							{
