@@ -1603,7 +1603,11 @@ void CIN_DrawCinematic (int handle) {
 				break;
 			case CIN_CLIENT:
 			default:
-				SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+				if ( cl_viewmode->integer <= 3 ) {
+					SCR_SetScreenPlacement( SCR_VERT_CENTER | SCR_HOR_CENTER );
+				} else {
+					SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+				}
 				SCR_AdjustFrom640( &x, &y, &w, &h );
 				break;
 		}

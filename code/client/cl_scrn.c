@@ -639,10 +639,35 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 
 	// wide aspect ratio screens need to have the sides cleared
 	// unless they are displaying game renderings
-	if ( uiFullscreen || clc.state < CA_LOADING ) {
-		if ( cls.glconfig.vidWidth * 480 > cls.glconfig.vidHeight * 640 ) {
+	if ( uiFullscreen || clc.state < CA_LOADING
+#ifdef USE_FLEXIBLE_DISPLAY
+	  || ( cl_flexibleDisplay->integer && ( clc.state != CA_ACTIVE || cl_viewmode->integer == 1 ) )
+#endif
+	  ) {
+		if ( cls.screenXBias || cls.screenYBias ) {
+			int left = cls.screenXBias + 0.5f;
+			int right = cls.glconfig.vidWidth - left;
+			int top = cls.screenYBias + 0.5f;
+			int bottom = cls.glconfig.vidHeight - top;
+
 			re.SetColor( g_color_table[0] );
-			re.DrawStretchPic( 0, 0, cls.glconfig.vidWidth, cls.glconfig.vidHeight, 0, 0, 0, 0, cls.whiteShader );
+
+			if ( cls.screenXBias ) {
+				// clear left
+				re.DrawStretchPic( 0, 0, left, cls.glconfig.vidHeight, 0, 0, 0, 0, cls.whiteShader );
+
+				// clear right
+				re.DrawStretchPic( right, 0, cls.glconfig.vidWidth - right, cls.glconfig.vidHeight, 0, 0, 0, 0, cls.whiteShader );
+			}
+
+			if ( cls.screenYBias ) {
+				// clear top
+				re.DrawStretchPic( left, 0, right - left, top, 0, 0, 0, 0, cls.whiteShader );
+
+				// clear bottom
+				re.DrawStretchPic( left, bottom, right - left, cls.glconfig.vidHeight - bottom, 0, 0, 0, 0, cls.whiteShader );
+			}
+
 			re.SetColor( NULL );
 		}
 	}
@@ -689,6 +714,17 @@ void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 		case CA_ACTIVE:
 			// always supply STEREO_CENTER as vieworg offset is now done by the engine.
 			CL_CGameRendering(stereoFrame);
+#ifdef USE_FLEXIBLE_DISPLAY
+			if ( cl_flexibleDisplay->integer ) {
+				if ( cl_viewmode->integer <= 2 ) {
+					SCR_SetScreenPlacement( SCR_VERT_CENTER | SCR_HOR_CENTER );
+				} else if ( cl_viewmode->integer == 3 ) {
+					SCR_SetScreenPlacement( SCR_VERT_TOP | SCR_HOR_CENTER );
+				} else {
+					SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+				}
+			}
+#endif
 			SCR_DrawDemoRecording();
 #ifdef USE_VOIP
 			SCR_DrawVoipMeter();

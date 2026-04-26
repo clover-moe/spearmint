@@ -123,6 +123,8 @@ cvar_t	*cl_consoleKeys;
 cvar_t	*cl_rate;
 
 #ifdef USE_FLEXIBLE_DISPLAY
+cvar_t	*cl_viewsize;
+cvar_t	*cl_viewmode;
 cvar_t	*cl_flexibleDisplay;
 #endif
 
@@ -3560,6 +3562,86 @@ void CL_Sayto_f( void ) {
 	CL_AddReliableCommand(va("tell %i \"%s\"", clientNum, p ), qfalse);
 }
 
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+=================
+CL_PrintViewMode
+=================
+*/
+static void CL_PrintViewMode( void ) {
+	switch ( cl_viewmode->integer ) {
+		case 1:
+			Com_Printf( "View-mode set to original 4:3 view/HUD\n" );
+			break;
+		case 2:
+			Com_Printf( "View-mode set to expanded view and 4:3 HUD\n" );
+			break;
+		case 3:
+			Com_Printf( "View-mode set to expanded view/HUD\n" );
+			break;
+		case 4:
+			Com_Printf( "View-mode set to expanded view and stretched HUD\n" );
+			break;
+		case 5:
+			// 640x480 video mode in fullscreen on a widescreen monitor is
+			// usually stretched to fill the whole screen.
+			Com_Printf( "View-mode set to original stretched view/HUD\n" );
+			break;
+		case 6:
+			Com_Printf( "View-mode set to original widescreen view/HUD\n" );
+			break;
+		default:
+			break;
+	}
+}
+
+/*
+=================
+CL_SizeDown_f
+=================
+*/
+static void CL_SizeUp_f (void) {
+	if ( cl_flexibleDisplay->integer ) {
+		if ( cl_viewsize->integer >= 100 ) {
+			if ( cl_viewmode->integer >= 6 ) {
+				return;
+			}
+
+			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer+1)));
+			CL_PrintViewMode();
+		} else {
+			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer+10)));
+		}
+	} else {
+		// run command in cgame
+		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
+			return;
+		}
+	}
+}
+
+/*
+=================
+CL_SizeDown_f
+=================
+*/
+static void CL_SizeDown_f (void) {
+	if ( cl_flexibleDisplay->integer ) {
+		if ( cl_viewmode->integer > 1 ) {
+			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer-1)));
+			CL_PrintViewMode();
+		} else {
+			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer-10)));
+		}
+	} else {
+		// run command in cgame
+		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
+			return;
+		}
+	}
+}
+#endif
+
 /*
 ====================
 CL_Init
@@ -3730,12 +3812,18 @@ void CL_Init( void ) {
 
 
 	// cgame might not be initialized before menu is used
+#ifdef USE_FLEXIBLE_DISPLAY
+	cl_viewsize = Cvar_Get ("cg_viewsize", "100", CVAR_ARCHIVE );
+#else
 	Cvar_Get ("cg_viewsize", "100", CVAR_ARCHIVE );
+#endif
 	// Make sure cg_stereoSeparation is zero as that variable is deprecated and should not be used anymore.
 	Cvar_Get ("cg_stereoSeparation", "0", CVAR_ROM);
 
 #ifdef USE_FLEXIBLE_DISPLAY
 	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
+	cl_viewmode = cl_flexibleDisplay;
+	Cvar_CheckRange( cl_flexibleDisplay, 0, 6, qtrue );
 #endif
 
 	//
@@ -3770,6 +3858,11 @@ void CL_Init( void ) {
 		Cmd_AddCommand ("sayto", CL_Sayto_f );
 		Cmd_SetCommandCompletionFunc( "sayto", CL_CompletePlayerName );
 	}
+#ifdef USE_FLEXIBLE_DISPLAY
+	Cmd_AddCommand ("sizeup", CL_SizeUp_f );
+	Cmd_AddCommand ("sizedown", CL_SizeDown_f );
+#endif
+
 	CL_InitRef();
 
 	SCR_Init ();

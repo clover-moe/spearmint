@@ -602,12 +602,25 @@ CL_GetUIScreenPlacement
 static int CL_GetUIScreenPlacement( void ) {
 	int placement;
 
-	// baseq3 was stretched vertically but centered horizontally in
-	// wide resolutions, Team Arena (with ui_new cvar) was stretched
-	if ( Cvar_Flags( "ui_new" ) != CVAR_NONEXISTENT ) {
+	if ( cl_viewmode->integer <= 2 ) {
+		placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+	} else if ( cl_viewmode->integer == 3 ) {
+		// draw the Team Arena in-game menu at the top of the screen
+		if ( clc.state == CA_ACTIVE && Cvar_Flags( "ui_new" ) != CVAR_NONEXISTENT ) {
+			placement = SCR_VERT_TOP | SCR_HOR_CENTER;
+		} else {
+			placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+		}
+	} else if ( cl_viewmode->integer == 5 ) {
 		placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
 	} else {
-		placement = SCR_VERT_STRETCH | SCR_HOR_CENTER;
+		// baseq3 was stretched vertically but centered horizontally in
+		// wide resolutions, Team Arena (with ui_new cvar) was stretched
+		if ( Cvar_Flags( "ui_new" ) != CVAR_NONEXISTENT ) {
+			placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+		} else {
+			placement = SCR_VERT_STRETCH | SCR_HOR_CENTER;
+		}
 	}
 
 	return placement;
@@ -926,10 +939,59 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 			float y = VMF(2);
 			float width = VMF(3);
 			float height = VMF(4);
+			float s0 = VMF(5);
+			float t0 = VMF(6);
+			float s1 = VMF(7);
+			float t1 = VMF(8);
+
+			// Clamp bounds so it doesn't run off the virtual 4:3 screen.
+			if ( cl_viewmode->integer <= 2 ) {
+				float value;
+
+				if ( x + width > SCREEN_WIDTH ) {
+					value = SCREEN_WIDTH - x;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					s1 = ( s1 - s0 ) * ( value / width ) + s0;
+					width = value;
+				}
+				// clamp other sides as well
+				if ( y + height > SCREEN_HEIGHT ) {
+					value = SCREEN_HEIGHT - y;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					t1 = ( t1 - t0 ) * ( value / height ) + t0;
+					height = value;
+				}
+				if ( x < 0 ) {
+					value = width + x;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					s0 = ( s0 - s1 ) * ( value / width ) + s1;
+					width = value;
+					x = 0;
+				}
+				if ( y < 0 ) {
+					value = height + y;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					t0 = ( t0 - t1 ) * ( value / height ) + t1;
+					height = value;
+					y = 0;
+				}
+
+				if ( width == 0 || height == 0 ) {
+					return 0;
+				}
+			}
 
 			CL_AdjustFromUI( &x, &y, &width, &height );
 
-			re.DrawStretchPic( x, y, width, height, VMF(5), VMF(6), VMF(7), VMF(8), args[9] );
+			re.DrawStretchPic( x, y, width, height, s0, t0, s1, t1, args[9] );
 			return 0;
 		}
 #endif

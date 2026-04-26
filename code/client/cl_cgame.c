@@ -35,6 +35,17 @@ extern qboolean loadCamera(const char *name);
 extern void startCamera(int time);
 extern qboolean getCameraInfo(int time, vec3_t *origin, vec3_t *angles);
 
+#ifdef USE_FLEXIBLE_DISPLAY
+static float cl_lastx, cl_lasty, cl_lastw, cl_lasth;
+static float cl_originx, cl_originy, cl_originw, cl_originh;
+static qboolean cl_lastUpperRight;
+static qboolean cl_enteredScoreboard;
+static qboolean cl_enteredStatusBar;
+static qboolean cl_enteredLowerLeft;
+static qboolean cl_ignoreLowerLeft;
+static qboolean cl_drewLagometer;
+#endif
+
 /*
 ====================
 CL_GetGameState
@@ -69,7 +80,171 @@ This is only called if cl_flexibleDisplay is enabled.
 ====================
 */
 void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
-	int placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+	if ( *y == SCREEN_HEIGHT - 48 && *x == SCREEN_WIDTH - 48 && *w == 48 && *h == 48 ) {
+		// always treat osp lagometer as new draw (should be fine for baseq3 as well)
+		cl_drewLagometer = qtrue;
+		cl_originx = *x;
+		cl_originy = *y;
+	}
+	// detect drawing something connected to the previous draw
+	// so that text string, etc are not split apart
+	else if ( *y == cl_lasty && *x >= cl_lastx ) {
+		// detects Q3 text
+		// detects Q3 scoreboard headers
+	} else if ( *y + *h > cl_lasty && *y < cl_lasty + cl_lasth && *x >= cl_lastx - 2 && *x <= cl_lastx + cl_lastw + 32 ) {
+		// detects Team Arena text
+		// (this would also detect Q3 text)
+	} else if (  // *y >= 380 - 22 &&
+		*y + *h >= cl_originy && *y < cl_originy + cl_originh
+		&& *x + *w >= cl_originx && *x < cl_originx + cl_originw ) {
+		// detects differing y / size for drawing weapon select marker (for scroll wheel) after weapon icons.
+		// detects same y for cg_drawTeamOverlay 2 and 3 drawing weapon icon after drawing text before and after it.
+	} else {
+		// not part of previous draw
+		cl_originx = *x;
+		cl_originy = *y;
+	}
+
+	cl_originw = *x + *w - cl_originx;
+	cl_originh = *y + *h - cl_originy;
+
+	int placement;
+
+	if ( cl_viewmode->integer <= 3 ) {
+		placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+	} else {
+		placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+	}
+
+	if ( clc.state == CA_ACTIVE && cl_viewmode->integer == 3 ) {
+		qboolean upperRight = qfalse;
+		const char *gamedir;
+
+		gamedir = Cvar_VariableString( "fs_game" );
+
+		// place the status bar at the bottom of the screen
+		placement = SCR_VERT_BOTTOM | SCR_HOR_CENTER;
+
+		// The scoreboard is drawn after the HUD.
+		if ( *y >= 60 && *y <= 69/*86*/ && *x >= 8 && *x < 320 ) {
+			// baseq3 scoreboard text or column header (center print is lower than this)
+			cl_enteredScoreboard = qtrue;
+		}
+
+		// tournament names (A vs B) draw at y=70
+
+		// osp draws initial connect message here but it's not after the HUD
+		if ( *y >= 87 && *y <= 144 && *x >= 8 && *x < 320 && strcmp( gamedir, "osp" ) != 0 ) {
+			// baseq3 center print text (this is drawn instead of scoreboard)
+			// proball scoreboard
+			cl_enteredScoreboard = qtrue;
+		}
+
+		if ( *y < 380 - 22 - TINYCHAR_HEIGHT * 8 && *x >= 8 && *w > SCREEN_WIDTH / 2 && *h > 16 ) {
+			// Team Arena scoreboard
+			// if it's above the statusbar and area for cg_drawTeamOverlay 3
+			// and over half the screen width,  it's probably the scoreboard background.
+			// (baseq3 draws various text, bot icon, and head model before this though)
+			cl_enteredScoreboard = qtrue;
+		}
+
+		// drew in left of status bar, or more likely drew 3D head model at y=60
+		if ( ( *y >= SCREEN_HEIGHT - 48 && *x < 320 )
+			|| ( *y >= SCREEN_HEIGHT - 60 && *x >= 256 && *x < 320 ) ) {
+			cl_enteredStatusBar = qtrue;
+		}
+
+		if ( 320 >= cl_originx && 320 <= cl_originx + cl_originw
+		  && 240 >= cl_originy && 240 <= cl_originy + cl_originh
+		  && *x == cl_originx && *y == cl_originy ) {
+			// center the crosshair (only matters for narrow screens)
+			placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+		}
+		// these are very game-specific
+		else if ( cl_conXOffset->integer && cl_originx + cl_originw <= cl_conXOffset->integer
+		       && cl_originy + cl_originh <= cl_conXOffset->integer ) {
+			// Team Arena voicechat head
+			placement = SCR_VERT_TOP | SCR_HOR_LEFT;
+		} else if ( *y >= 240 - 16 && *y < 240 + 64 && ( cl_originy > 253 || cl_originx > 128 )
+		         && strcmp( gamedir, "defrag" ) == 0 ) {
+			// df_hud_cgaz 1
+			placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+		} else if ( !cl_enteredScoreboard && (
+		    /* cg_drawTeamOverlay 1; additional powerups are drawn to left of SCREEN_WIDTH - 312 afterward
+		    NOTE: osp draws team overlay at y=0_after fps, timer, and things not in the upper right. :( */
+		    ( ( cl_originx >= SCREEN_WIDTH - 312 || ( cl_lastUpperRight && *x + *w == cl_lastx && *y == cl_lasty ) )
+		                && cl_originy + cl_originh <= TINYCHAR_HEIGHT * 8 )
+		    /* cg_drawSnapshot 1; originy == 0 for Q3 font but allow higher in case a mod uses a Team Arena font. */
+		    || ( cl_originx > 0 && cl_originy <= BIGCHAR_HEIGHT && cl_originy + cl_originh <= BIGCHAR_HEIGHT + 4 )
+#if 0 // This has too many false positives, such as warmup and tournament names.
+		    /* cg_drawSnapshot 1 with cg_drawTeamOverlay 1 */
+		    || ( cl_lastUpperRight && cl_originx > 0 && cl_originy + cl_originh <= TINYCHAR_HEIGHT * 8 + BIGCHAR_HEIGHT + 4 )
+#endif
+		    /* Other elements; cg_drawFPS, cg_drawTimer, cg_drawAttacker */
+		    || ( cl_originx >= SCREEN_WIDTH - 128 && cl_originy <= BIGCHAR_HEIGHT )
+		    || ( cl_lastUpperRight && cl_originx >= 320 && cl_originy + cl_originh <= 240 ) ) ) {
+			// top-right HUD information
+			//
+			// NOTE: max cl_originy + cl_originh in baseq3/missionpack is 186.
+			//
+			// cg_drawSnapshot text can be very wide and may be far left on the screen.
+			// Don't bother checking x because nothing should draw in the upper left
+			// due to notify text aside background at x == 0 for cg_viewsize 50
+			// and Team Arena voicechat head.
+			//
+			placement = SCR_VERT_TOP | SCR_HOR_RIGHT;
+			upperRight = qtrue;
+		} else if ( !cl_enteredScoreboard && ( ( cl_originx <= 64 && ( cl_originx <= 8 || cl_originy > 128 ) )
+		        || ( cl_enteredLowerLeft && cl_originx <= 128 && cl_originy >= 240 ) )
+		    && cl_originy + cl_originh <= SCREEN_HEIGHT - 48
+		    /* && cl_originy >= SCREEN_HEIGHT - 48 * 2 - TINYCHAR_HEIGHT * 8 */ ) {
+			// CG_DrawLowerLeft()
+			// Item pickup (CG_DrawReward) in baseq3
+			// teamoverlay and team chat
+			// Showing scoreboard hides status bar but still need to offset baseq3 reward
+			// osp needs to check larger area after cl_enteredLowerLeft so URL in MOTD is detected
+
+			// Hack to detect Team Arena's team gametype player info area (y=367).
+			// baseq3 team chat is at y=420, reward and team overlay are at y=SCREEN_HEIGHT - 48
+			// osp draws reward at y=410 and MOTD is higher.
+			if ( !cl_enteredLowerLeft && cl_originy == 367 ) {
+				cl_ignoreLowerLeft = qtrue;
+			}
+
+			if ( !cl_ignoreLowerLeft ) {
+				placement = SCR_VERT_BOTTOM | SCR_HOR_LEFT;
+			}
+			cl_enteredLowerLeft = qtrue;
+		} else if ( !cl_enteredScoreboard && cl_originx >= SCREEN_WIDTH - 312 && ( cl_originy > 128 || cl_originx > 320 )
+		    && ( !cl_enteredStatusBar || cl_originy + cl_originh <= SCREEN_HEIGHT - 48 ||
+		       ( cl_drewLagometer && cl_originx >= SCREEN_WIDTH - 128 && cl_originy >= SCREEN_HEIGHT - 48 ) ) ) {
+			// CG_DrawLowerRight()
+			// Scores, powerups in baseq3
+			// Powerups for Team Arena draw before status bar and decend into it with 5+ powerups.
+			// osp draws lagometer with scores to the left of it.
+			// This also detects Team Arena g_gametype 4's location message but it's ignored here and left centered.
+			if ( !cl_ignoreLowerLeft ) {
+				placement = SCR_VERT_BOTTOM | SCR_HOR_RIGHT;
+			}
+		} else if ( cl_originy + cl_originh < 380 - 22 ) {
+			// above weapon select is centered vertically
+			// this mainly for the center print
+			placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+		}
+
+		cl_lastUpperRight = upperRight;
+	} else if ( clc.state < CA_ACTIVE && cl_viewmode->integer == 3 ) {
+		// TODO?: Add a cvar to enable this?
+		if ( 0 && *x == 0 && *y == 0 && *w == SCREEN_WIDTH && *h == SCREEN_HEIGHT ) {
+			// stretch loading levelshot
+			placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+		}
+	}
+
+	cl_lastx = *x;
+	cl_lasty = *y;
+	cl_lastw = *w;
+	cl_lasth = *h;
 
 	SCR_SetScreenPlacement( placement );
 	SCR_AdjustFrom640( x, y, w, h );
@@ -267,6 +442,8 @@ void CL_ConfigstringModified( void ) {
 	if ( index == CS_SYSTEMINFO ) {
 		// parse serverId and other cvars
 		CL_SystemInfoChanged();
+	} else if ( index == CS_SERVERINFO ) {
+		CL_ServerInfoChanged();
 	}
 
 }
@@ -593,17 +770,61 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 
 			memcpy( &fd, VMA(1), sizeof( refdef_t ) );
 
-			x = fd.x;
-			y = fd.y;
-			width = fd.width;
-			height = fd.height;
+			if ( cl_viewmode->integer >= 2 && fd.x == 0 && fd.y == 0 && fd.width == 640 && fd.height == 480 ) {
+				float expected_fov_y, water_fov_y;
 
-			CL_AdjustFromCGame( &x, &y, &width, &height );
+				// find underwater view fov_y offset
+				x = 640 / tan( fd.fov_x / 360 * M_PI );
+				expected_fov_y = atan2( 480, x );
+				expected_fov_y = expected_fov_y * 360 / M_PI;
 
-			fd.x = (int)x;
-			fd.y = (int)y;
-			fd.width = (int)(width + 0.5f);
-			fd.height = (int)(height + 0.5f);
+				water_fov_y = expected_fov_y - fd.fov_y;
+
+				// make the world scene fill the window
+				fd.width = cls.glconfig.vidWidth;
+				fd.height = cls.glconfig.vidHeight;
+
+				if ( cl_viewmode->integer == 5 || ( clc.dmflags & DF_FIXED_FOV ) ) {
+					// stretch fov
+					// this is common for 4:3 video mode on a widescreen monitor.
+				} else if ( cl_viewmode->integer <= 4 ) {
+					// apply underwater effect after fov change
+					// this doesn't matter much but it matches setting cg_fov manually
+					// without cl_flexibleDisplay
+					fd.fov_x -= water_fov_y;
+
+					// Based on LordHavoc's code for Darkplaces
+					// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
+					const float baseAspect = 0.75f; // 3/4
+					const float aspect = (float)fd.width/(float)fd.height;
+					const float desiredFov = fd.fov_x;
+
+					fd.fov_x = atan( tan( desiredFov*M_PI / 360.0f ) * baseAspect*aspect )*360.0f / M_PI;
+
+					fd.fov_x += water_fov_y;
+				} else {
+					// use vert- to match original Quake 3 widescreen
+					// find vert- fov_y
+					x = fd.width / tan( fd.fov_x / 360 * M_PI );
+					fd.fov_y = atan2( fd.height, x );
+					fd.fov_y = fd.fov_y * 360 / M_PI;
+
+					// restore underwater effect
+					fd.fov_y -= water_fov_y;
+				}
+			} else {
+				x = fd.x;
+				y = fd.y;
+				width = fd.width;
+				height = fd.height;
+
+				CL_AdjustFromCGame( &x, &y, &width, &height );
+
+				fd.x = (int)x;
+				fd.y = (int)y;
+				fd.width = (int)(width + 0.5f);
+				fd.height = (int)(height + 0.5f);
+			}
 
 			re.RenderScene( &fd );
 			return 0;
@@ -621,10 +842,66 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 			float y = VMF(2);
 			float width = VMF(3);
 			float height = VMF(4);
+			float s0 = VMF(5);
+			float t0 = VMF(6);
+			float s1 = VMF(7);
+			float t1 = VMF(8);
+
+			// Clamp bounds so it doesn't run off the virtual 4:3 screen.
+			// The UI only clamps cl_viewmode <= 2 because the original q3_ui
+			// was centered and the menu cursor was visible out-of-bounds in
+			// widescreen.
+			// CGame q3_ui scoreboard draws highlight for local player running
+			// off screen. This wasn't original visible as CGame was always
+			// stretched so clamp bounds in cl_viewmode 3 as well.
+			if ( cl_viewmode->integer <= 3 ) {
+				float value;
+
+				if ( x + width > SCREEN_WIDTH ) {
+					value = SCREEN_WIDTH - x;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					s1 = ( s1 - s0 ) * ( value / width ) + s0;
+					width = value;
+				}
+				// clamp other sides as well
+				if ( y + height > SCREEN_HEIGHT ) {
+					value = SCREEN_HEIGHT - y;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					t1 = ( t1 - t0 ) * ( value / height ) + t0;
+					height = value;
+				}
+				if ( x < 0 ) {
+					value = width + x;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					s0 = ( s0 - s1 ) * ( value / width ) + s1;
+					width = value;
+					x = 0;
+				}
+				if ( y < 0 ) {
+					value = height + y;
+					if ( value < 0 ) {
+						value = 0;
+					}
+					t0 = ( t0 - t1 ) * ( value / height ) + t1;
+					height = value;
+					y = 0;
+				}
+
+				if ( width == 0 || height == 0 ) {
+					return 0;
+				}
+			}
+
 
 			CL_AdjustFromCGame( &x, &y, &width, &height );
 
-			re.DrawStretchPic( x, y, width, height, VMF(5), VMF(6), VMF(7), VMF(8), args[9] );
+			re.DrawStretchPic( x, y, width, height, s0, t0, s1, t1, args[9] );
 			return 0;
 		}
 #endif
@@ -858,6 +1135,19 @@ CL_CGameRendering
 =====================
 */
 void CL_CGameRendering( stereoFrame_t stereo ) {
+#ifdef USE_FLEXIBLE_DISPLAY
+	cl_lastx = cl_lasty = -9000;
+	cl_lastw = cl_lasth = 0;
+	cl_originx = cl_originy = -9000;
+	cl_originw = cl_originh = 0;
+	cl_lastUpperRight = qfalse;
+	cl_enteredScoreboard = qfalse;
+	cl_enteredStatusBar = qfalse;
+	cl_enteredLowerLeft = qfalse;
+	cl_ignoreLowerLeft = qfalse;
+	cl_drewLagometer = qfalse;
+#endif
+
 	VM_Call( cgvm, CG_DRAW_ACTIVE_FRAME, cl.serverTime, stereo, clc.demoplaying );
 	VM_Debug( 0 );
 }

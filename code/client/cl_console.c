@@ -547,7 +547,16 @@ void Con_SetTextPlacement( void ) {
 		placement |= SCR_VERT_NATIVE | SCR_HOR_NATIVE;
 	}
 
-	placement |= SCR_VERT_TOP | SCR_HOR_LEFT;
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer && cl_viewmode->integer <= 2 ) {
+		placement |= SCR_VERT_CENTER | SCR_HOR_CENTER;
+	} else if ( cl_flexibleDisplay->integer && !con_native->integer && cl_viewmode->integer == 5 ) {
+		placement |= SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+	} else
+#endif
+	{
+		placement |= SCR_VERT_TOP | SCR_HOR_LEFT;
+	}
 
 	SCR_SetScreenPlacement( placement );
 	SCR_SetNativeScale( con_scale->value );
@@ -597,7 +606,7 @@ void Con_DrawNotify (void)
 
 #ifdef USE_FLEXIBLE_DISPLAY
 	if ( cl_flexibleDisplay->integer ) {
-		if ( 0 ) {
+		if ( cl_viewmode->integer <= 3 || ( !con_native->integer && cl_viewmode->integer == 5 ) ) {
 			// this matches the cl_flexibleDisplay 0 code path but it has
 			// resolution dependent behavior. higher resolutions end up
 			// with notify text on top of the Team Arena voice head.
@@ -670,7 +679,18 @@ void Con_DrawNotify (void)
 	// draw the chat line
 	if ( Key_GetCatcher( ) & KEYCATCH_MESSAGE )
 	{
-		SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+#ifdef USE_FLEXIBLE_DISPLAY
+		if ( cl_flexibleDisplay->integer && cl_viewmode->integer <= 3 ) {
+			if ( cl_viewmode->integer <= 2 ) {
+				SCR_SetScreenPlacement( SCR_VERT_CENTER | SCR_HOR_CENTER );
+			} else {
+				SCR_SetScreenPlacement( SCR_VERT_TOP | SCR_HOR_LEFT );
+			}
+		} else
+#endif
+		{
+			SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+		}
 
 		if (chat_team)
 		{
@@ -708,6 +728,18 @@ void Con_DrawSolidConsole( float frac ) {
 	int				vidWidth;
 	int				vidHeight;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer && ( cl_viewmode->integer <= 2
+		|| ( !con_native->integer && cl_viewmode->integer == 5 ) ) ) {
+		vidWidth = SCREEN_WIDTH;
+		vidHeight = SCREEN_HEIGHT;
+
+		if ( con_native->integer ) {
+			vidWidth *= cls.screenXScale / con_scale->value;
+			vidHeight *= cls.screenYScale / con_scale->value;
+		}
+	} else
+#endif
 	if ( con_native->integer ) {
 		vidWidth = cls.glconfig.vidWidth / con_scale->value;
 		vidHeight = cls.glconfig.vidHeight / con_scale->value;
@@ -723,17 +755,57 @@ void Con_DrawSolidConsole( float frac ) {
 	if (lines > vidHeight )
 		lines = vidHeight;
 
-	SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+#ifdef USE_FLEXIBLE_DISPLAY
+	if ( cl_flexibleDisplay->integer && cl_viewmode->integer <= 2 ) {
+		SCR_SetScreenPlacement( SCR_VERT_CENTER | SCR_HOR_CENTER );
+	} else
+#endif
+	{
+		SCR_SetScreenPlacement( SCR_VERT_STRETCH | SCR_HOR_STRETCH );
+	}
 
+#ifndef USE_FLEXIBLE_DISPLAY
 	// on wide screens, we will center the text
 	con.xadjust = 0;
 	SCR_AdjustFrom640( &con.xadjust, NULL, NULL, NULL );
+#endif
 
 	// draw the background
 	y = frac * SCREEN_HEIGHT;
 	if ( y < 1 ) {
 		y = 0;
 	}
+#ifdef USE_FLEXIBLE_DISPLAY
+	else if ( cl_flexibleDisplay->integer && cl_viewmode->integer == 3 ) {
+		const float picX = SCREEN_WIDTH;
+		const float picY = SCREEN_HEIGHT / 2;
+		float ax, ay, aw, ah;
+		float s0, t0, s1, t1;
+		float sDelta, tDelta;
+
+		ax = 0;
+		ay = 0;
+		aw = SCREEN_WIDTH;
+		ah = y;
+		SCR_AdjustFrom640( &ax, &ay, &aw, &ah );
+
+		// get aspect correct coords
+		s0 = ax/(picX * cls.screenXScale);
+		t0 = ay/(picY * cls.screenYScale);
+		s1 = (ax+aw)/(picX * cls.screenXScale);
+		t1 = (ay+ah)/(picY * cls.screenYScale);
+
+		// center pic
+		sDelta = (1.0f - s1) / 2.0f;
+		tDelta = (1.0f - t1) / 2.0f;
+		s0 += sDelta;
+		s1 += sDelta;
+		t0 += tDelta;
+		t1 += tDelta;
+
+		re.DrawStretchPic( ax, ay, aw, ah, s0, t0, s1, t1, cls.consoleShader );
+	}
+#endif
 	else {
 		SCR_DrawPic( 0, 0, SCREEN_WIDTH, y, cls.consoleShader );
 	}
@@ -811,6 +883,22 @@ void Con_DrawSolidConsole( float frac ) {
 
 	// draw the input prompt, user text, and cursor if desired
 	Con_DrawInput ();
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	// add border if necessary so text drawing past the top of the console isn't visible
+	if ( cl_flexibleDisplay->integer && cl_viewmode->integer <= 2 ) {
+		float ax, ay;
+
+		ax = 0;
+		ay = 0;
+		SCR_AdjustFrom640( &ax, &ay, NULL, NULL );
+
+		if ( ay ) {
+			re.SetColor( g_color_table[0] );
+			re.DrawStretchPic( ax, 0, cls.glconfig.vidWidth, ay, 0, 0, 0, 0, cls.whiteShader );
+		}
+	}
+#endif
 
 	re.SetColor( NULL );
 }

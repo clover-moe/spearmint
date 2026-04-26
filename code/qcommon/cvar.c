@@ -582,6 +582,9 @@ cvar_t *Cvar_Set2( const char *var_name, const char *value, qboolean force ) {
 				if (strcmp(value, var->latchedString) == 0)
 					return var;
 				Z_Free (var->latchedString);
+#ifdef USE_FLEXIBLE_DISPLAY
+				var->latchedString = NULL;
+#endif
 			}
 			else
 			{
@@ -589,11 +592,19 @@ cvar_t *Cvar_Set2( const char *var_name, const char *value, qboolean force ) {
 					return var;
 			}
 
+#ifdef USE_FLEXIBLE_DISPLAY
+			if ( Q_stricmp( var->name, "cl_flexibleDisplay" ) == 0 && !!atoi( value ) == !!atoi( var->string ) ) {
+				// cl_flexibleDisplay only requires restart when changing to/from 0
+			} else {
+#endif
 			Com_Printf ("%s will be changed upon restarting.\n", var_name);
 			var->latchedString = CopyString(value);
 			var->modified = qtrue;
 			var->modificationCount++;
 			return var;
+#ifdef USE_FLEXIBLE_DISPLAY
+			}
+#endif
 		}
 	}
 	else

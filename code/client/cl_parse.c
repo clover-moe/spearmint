@@ -437,10 +437,10 @@ void CL_SystemInfoChanged( void ) {
 
 /*
 ==================
-CL_ParseServerInfo
+CL_ServerInfoChanged
 ==================
 */
-static void CL_ParseServerInfo(void)
+void CL_ServerInfoChanged(void)
 {
 	const char *serverInfo;
 
@@ -452,6 +452,10 @@ static void CL_ParseServerInfo(void)
 	Q_strncpyz(clc.sv_dlURL,
 		Info_ValueForKey(serverInfo, "sv_dlURL"),
 		sizeof(clc.sv_dlURL));
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	clc.dmflags = atoi( Info_ValueForKey( serverInfo, "dmflags" ) );
+#endif
 }
 
 /*
@@ -526,7 +530,7 @@ void CL_ParseGamestate( msg_t *msg ) {
 	Cvar_VariableStringBuffer("fs_game", oldGame, sizeof(oldGame));
 
 	// parse useful values out of CS_SERVERINFO
-	CL_ParseServerInfo();
+	CL_ServerInfoChanged();
 
 	// parse serverId and other cvars
 	CL_SystemInfoChanged();

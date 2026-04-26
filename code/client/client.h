@@ -266,6 +266,10 @@ typedef struct {
 	qboolean compat;
 #endif
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	int dmflags;
+#endif
+
 	// big stuff at end of structure so most offsets are 15 bits or less
 	netchan_t	netchan;
 } clientConnection_t;
@@ -464,6 +468,8 @@ extern	cvar_t	*cl_voip;
 #endif
 
 #ifdef USE_FLEXIBLE_DISPLAY
+extern	cvar_t	*cl_viewsize;
+extern	cvar_t	*cl_viewmode;
 extern	cvar_t	*cl_flexibleDisplay;
 #endif
 
@@ -543,6 +549,7 @@ void CL_Voip_f( void );
 #endif
 
 void CL_SystemInfoChanged( void );
+void CL_ServerInfoChanged( void );
 void CL_ParseServerMessage( msg_t *msg );
 
 //====================================================================
