@@ -1767,6 +1767,22 @@ void RE_EndRegistration( void ) {
 
 
 /*
+=============
+RE_ResizeWindow
+=============
+*/
+qboolean RE_ResizeWindow( int width, int height ) {
+	if ( glRefConfig.framebufferObject ) {
+		// TODO: Resize all screen-sized FBOs and attached images
+		//       instead of returning qfalse which runs vid_restart.
+		return qfalse;
+	}
+
+	return GLimp_ResizeWindow( width, height );
+}
+
+
+/*
 @@@@@@@@@@@@@@@@@@@@@
 GetRefAPI
 
@@ -1794,7 +1810,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp, qboolean headless ) 
 	// the RE_ functions are Renderer Entry points
 
 	re.Shutdown = RE_Shutdown;
-	re.ResizeWindow = GLimp_ResizeWindow;
+	re.ResizeWindow = RE_ResizeWindow;
 
 	re.BeginRegistration = RE_BeginRegistration;
 	re.RegisterModel = RE_RegisterModel;
