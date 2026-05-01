@@ -633,8 +633,8 @@ void	SCR_DrawSmallChar( int x, int y, int ch );
 
 // module that started the cinematic
 #define CIN_CLIENT 1
-#define CIN_UI 2
-#define CIN_CGAME 3
+#define CIN_CGAME 2
+#define CIN_UI 3
 
 void CL_PlayCinematic_f( void );
 void SCR_DrawCinematic (void);
@@ -659,7 +659,9 @@ void CL_CGameRendering( stereoFrame_t stereo );
 void CL_SetCGameTime( void );
 void CL_FirstSnapshot( void );
 void CL_ShaderStateChanged(void);
+#ifdef USE_FLEXIBLE_DISPLAY
 void CL_AdjustFromCGame( float *x, float *y, float *w, float *h );
+#endif
 
 //
 // cl_ui.c
