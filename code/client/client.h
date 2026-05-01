@@ -374,6 +374,7 @@ typedef struct {
 	qboolean	drawnLoadingScreen;
 	qhandle_t	whiteShader;
 
+#ifdef USE_FLEXIBLE_DISPLAY
 	// for scaling from 640x480
 	float screenXScaleStretch;
 	float screenYScaleStretch;
@@ -381,6 +382,7 @@ typedef struct {
 	float screenYScale;
 	float screenXBias;
 	float screenYBias;
+#endif
 } clientStatic_t;
 
 extern	clientStatic_t		cls;
@@ -589,6 +591,7 @@ void	SCR_UpdateScreen (void);
 
 void	SCR_DebugGraph (float value);
 
+#ifdef USE_FLEXIBLE_DISPLAY
 // horizontal and vertical alignment flags
 // for SCR_SetScreenPlacement() / SCR_AdjustFrom640()
 #define SCR_HOR_CENTER 0x01
@@ -609,6 +612,7 @@ void	SCR_SetScreenPlacement( int placement );
 void	SCR_SetNativeScale( float scale );
 void	SCR_AdjustFrom640( float *x, float *y, float *w, float *h );
 void	SCR_AdjustTo640( float *x, float *y, float *w, float *h );
+#endif
 
 
 //

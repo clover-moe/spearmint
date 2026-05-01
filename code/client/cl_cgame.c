@@ -76,9 +76,13 @@ void CL_GetGlconfig( glconfig_t *glconfig, int size ) {
 	Com_Memcpy2( glconfig, size, &cls.glconfig, sizeof ( glconfig_t ) );
 
 #ifdef USE_FLEXIBLE_DISPLAY
-	if ( cl_flexibleDisplay->integer ) {
+	if ( cl_flexibleDisplay->integer
+	  && size >= offsetof( glconfig_t, vidWidth ) + sizeof( int )
+	  && size >= offsetof( glconfig_t, vidHeight ) + sizeof( int )
+	  && size >= offsetof( glconfig_t, windowAspect ) + sizeof( float ) ) {
 		glconfig->vidWidth = 640;
 		glconfig->vidHeight = 480;
+		glconfig->windowAspect = (float)glconfig->vidWidth / (float)glconfig->vidHeight;
 	}
 #endif
 }
@@ -92,6 +96,25 @@ This is only called if cl_flexibleDisplay is enabled.
 ====================
 */
 void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
+#if 1
+	int placement;
+
+	if ( cl_viewmode->integer <= 3 ) {
+		placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
+	} else {
+		placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+	}
+
+	// TODO?: Restore expanded HUD for cl_viewmode == 3? Currently it breaks the console and menu.
+
+	SCR_SetScreenPlacement( placement );
+	SCR_AdjustFrom640( x, y, w, h );
+#else
+	#define SCREEN_WIDTH 640
+	#define SCREEN_HEIGHT 480
+	#define TINYCHAR_HEIGHT 8
+	#define BIGCHAR_HEIGHT 16
+
 	if ( *y == SCREEN_HEIGHT - 48 && *x == SCREEN_WIDTH - 48 && *w == 48 && *h == 48 ) {
 		// always treat osp lagometer as new draw (should be fine for baseq3 as well)
 		cl_drewLagometer = qtrue;
@@ -173,8 +196,8 @@ void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
 			placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
 		}
 		// these are very game-specific
-		else if ( cl_conXOffset->integer && cl_originx + cl_originw <= cl_conXOffset->integer
-		       && cl_originy + cl_originh <= cl_conXOffset->integer ) {
+		else if ( cl_originx + cl_originw <= 72
+		       && cl_originy + cl_originh <= 72 ) {
 			// Team Arena voicechat head
 			placement = SCR_VERT_TOP | SCR_HOR_LEFT;
 		} else if ( *y >= 240 - 16 && *y < 240 + 64 && ( cl_originy > 253 || cl_originx > 128 )
@@ -260,6 +283,7 @@ void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
 
 	SCR_SetScreenPlacement( placement );
 	SCR_AdjustFrom640( x, y, w, h );
+#endif
 }
 #endif
 
@@ -1623,6 +1647,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return 0;
 	case CG_R_RENDERSCENE:
 #ifdef USE_FLEXIBLE_DISPLAY
+		#define DF_FIXED_FOV 16
 		if ( cl_flexibleDisplay->integer ) {
 			refdef_t fd;
 			float x, y, width, height;
@@ -1670,6 +1695,46 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 
 					// restore underwater effect
 					fd.fov_y -= water_fov_y;
+				}
+
+				//
+				// weapon fov
+				//
+
+				// find underwater view fov_y offset
+				x = 640 / tan( fd.weapon_fov_x / 360 * M_PI );
+				expected_fov_y = atan2( 480, x );
+				expected_fov_y = expected_fov_y * 360 / M_PI;
+
+				water_fov_y = expected_fov_y - fd.weapon_fov_y;
+
+				if ( cl_viewmode->integer == 5 || ( clc.dmflags & DF_FIXED_FOV ) ) {
+					// stretch fov
+					// this is common for 4:3 video mode on a widescreen monitor.
+				} else if ( cl_viewmode->integer <= 4 ) {
+					// apply underwater effect after fov change
+					// this doesn't matter much but it matches setting cg_fov manually
+					// without cl_flexibleDisplay
+					fd.weapon_fov_x -= water_fov_y;
+
+					// Based on LordHavoc's code for Darkplaces
+					// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
+					const float baseAspect = 0.75f; // 3/4
+					const float aspect = (float)fd.width/(float)fd.height;
+					const float desiredFov = fd.weapon_fov_x;
+
+					fd.weapon_fov_x = atan( tan( desiredFov*M_PI / 360.0f ) * baseAspect*aspect )*360.0f / M_PI;
+
+					fd.weapon_fov_x += water_fov_y;
+				} else {
+					// use vert- to match original Quake 3 widescreen
+					// find vert- fov_y
+					x = fd.width / tan( fd.weapon_fov_x / 360 * M_PI );
+					fd.weapon_fov_y = atan2( fd.height, x );
+					fd.weapon_fov_y = fd.weapon_fov_y * 360 / M_PI;
+
+					// restore underwater effect
+					fd.weapon_fov_y -= water_fov_y;
 				}
 			} else {
 				x = fd.x;
@@ -1719,8 +1784,8 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 			if ( cl_viewmode->integer <= 3 ) {
 				float value;
 
-				if ( x + width > SCREEN_WIDTH ) {
-					value = SCREEN_WIDTH - x;
+				if ( x + width > 640 ) {
+					value = 640 - x;
 					if ( value < 0 ) {
 						value = 0;
 					}
@@ -1728,8 +1793,8 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 					width = value;
 				}
 				// clamp other sides as well
-				if ( y + height > SCREEN_HEIGHT ) {
-					value = SCREEN_HEIGHT - y;
+				if ( y + height > 480 ) {
+					value = 480 - y;
 					if ( value < 0 ) {
 						value = 0;
 					}

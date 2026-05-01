@@ -3267,15 +3267,13 @@ void CL_DrawLoadingScreen( void ) {
 	}
 }
 
+#ifdef USE_FLEXIBLE_DISPLAY
 /*
 ============
 CL_WindowResized
 ============
 */
-void CL_WindowResized( int width, int height ) {
-	cls.glconfig.vidWidth = width;
-	cls.glconfig.vidHeight = height;
-
+void CL_WindowResized( void ) {
 	//
 	// Scaling factors and offsets for SCR_AdjustFrom640()
 	//
@@ -3300,6 +3298,7 @@ void CL_WindowResized( int width, int height ) {
 		cls.screenXBias = 0;
 	}
 }
+#endif
 
 /*
 ============
@@ -3315,9 +3314,9 @@ void CL_InitRenderer( void ) {
 #ifdef USE_FLEXIBLE_DISPLAY
 	// update latched value at vid_restart
 	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
-#endif
 
-	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
+	CL_WindowResized();
+#endif
 
 	// draw loading screen when the game is starting up
 	if (!cls.drawnLoadingScreen) {
@@ -3335,7 +3334,9 @@ void CL_GlconfigChanged( const glconfig_t *glconfig ) {
 	cls.glconfig = *glconfig;
 	CL_UpdateGlconfig();
 
-	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
+#ifdef USE_FLEXIBLE_DISPLAY
+	CL_WindowResized();
+#endif
 }
 
 /*
@@ -3574,6 +3575,8 @@ static void CL_PrintViewMode( void ) {
 	}
 }
 
+extern void CL_GameCommand( void );
+
 /*
 =================
 CL_SizeDown_f
@@ -3593,8 +3596,8 @@ static void CL_SizeUp_f (void) {
 		}
 	} else {
 		// run command in cgame
-		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
-			return;
+		if ( com_cl_running && com_cl_running->integer ) {
+			CL_GameCommand();
 		}
 	}
 }
@@ -3614,8 +3617,8 @@ static void CL_SizeDown_f (void) {
 		}
 	} else {
 		// run command in cgame
-		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
-			return;
+		if ( com_cl_running && com_cl_running->integer ) {
+			CL_GameCommand();
 		}
 	}
 }

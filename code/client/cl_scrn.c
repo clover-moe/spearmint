@@ -32,8 +32,10 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "client.h"
 
 qboolean	scr_initialized;		// ready to draw
+#ifdef USE_FLEXIBLE_DISPLAY
 int			scr_placement;
 float		scr_nativeScale = 1.0f;
+#endif
 
 cvar_t		*cl_timegraph;
 cvar_t		*cl_debuggraph;
@@ -41,6 +43,7 @@ cvar_t		*cl_graphheight;
 cvar_t		*cl_graphscale;
 cvar_t		*cl_graphshift;
 
+#ifdef USE_FLEXIBLE_DISPLAY
 /*
 ================
 SCR_SetScreenPlacement
@@ -224,6 +227,7 @@ void SCR_AdjustTo640( float *x, float *y, float *w, float *h ) {
 		}
 	}
 }
+#endif
 
 
 
