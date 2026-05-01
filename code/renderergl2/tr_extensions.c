@@ -167,6 +167,18 @@ void GLimp_InitExtraExtensions(void)
 			ri.Printf(PRINT_ALL, result[2], extension);
 		}
 
+		// GL_EXT_sRGB_write_control
+		extension = "GL_EXT_sRGB_write_control";
+		if ( SDL_GL_ExtensionSupported( extension ) )
+		{
+			qglDisable( GL_FRAMEBUFFER_SRGB );
+			ri.Printf(PRINT_ALL, result[1], extension);
+		}
+		else
+		{
+			ri.Printf(PRINT_ALL, result[2], extension);
+		}
+
 		goto done;
 	}
 

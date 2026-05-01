@@ -288,6 +288,10 @@ typedef struct {
 	qboolean compat;
 #endif
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	int dmflags;
+#endif
+
 	// big stuff at end of structure so most offsets are 15 bits or less
 	netchan_t	netchan;
 } clientConnection_t;
@@ -369,6 +373,14 @@ typedef struct {
 	glconfig_t	glconfig;
 	qboolean	drawnLoadingScreen;
 	qhandle_t	whiteShader;
+
+	// for scaling from 640x480
+	float screenXScaleStretch;
+	float screenYScaleStretch;
+	float screenXScale;
+	float screenYScale;
+	float screenXBias;
+	float screenYBias;
 } clientStatic_t;
 
 extern	clientStatic_t		cls;
@@ -463,6 +475,12 @@ extern	cvar_t	*cl_voip;
 #define VOIP_MAX_PACKET_SAMPLES		( VOIP_MAX_FRAME_SAMPLES * VOIP_MAX_PACKET_FRAMES )
 #endif
 
+#ifdef USE_FLEXIBLE_DISPLAY
+extern	cvar_t	*cl_viewsize;
+extern	cvar_t	*cl_viewmode;
+extern	cvar_t	*cl_flexibleDisplay;
+#endif
+
 //=================================================
 
 //
@@ -542,6 +560,7 @@ qboolean CL_GetVoipMuteAll( void );
 #endif
 
 void CL_SystemInfoChanged( void );
+void CL_ServerInfoChanged( void );
 void CL_ParseServerMessage( msg_t *msg );
 
 //====================================================================
@@ -570,18 +589,41 @@ void	SCR_UpdateScreen (void);
 
 void	SCR_DebugGraph (float value);
 
+// horizontal and vertical alignment flags
+// for SCR_SetScreenPlacement() / SCR_AdjustFrom640()
+#define SCR_HOR_CENTER 0x01
+#define SCR_HOR_LEFT 0x02
+#define SCR_HOR_RIGHT 0x03
+#define SCR_HOR_STRETCH 0x04
+#define SCR_HOR_MASK 0x07
+#define SCR_HOR_NATIVE 0x08
+
+#define SCR_VERT_CENTER 0x10
+#define SCR_VERT_TOP 0x20
+#define SCR_VERT_BOTTOM 0x30
+#define SCR_VERT_STRETCH 0x40
+#define SCR_VERT_MASK 0x70
+#define SCR_VERT_NATIVE 0x80
+
+void	SCR_SetScreenPlacement( int placement );
+void	SCR_SetNativeScale( float scale );
 void	SCR_AdjustFrom640( float *x, float *y, float *w, float *h );
+void	SCR_AdjustTo640( float *x, float *y, float *w, float *h );
 
 
 //
 // cl_cin.c
 //
 
-int CIN_PlayCinematic( const char *arg0, int xpos, int ypos, int width, int height, int bits);
+// module that started the cinematic
+#define CIN_CLIENT 1
+#define CIN_CGAME 2
+
+int CIN_PlayCinematic( const char *arg0, int xpos, int ypos, int width, int height, int bits, int module);
 e_status CIN_StopCinematic(int handle);
 e_status CIN_RunCinematic (int handle);
 void CIN_DrawCinematic (int handle);
-void CIN_SetExtents (int handle, int x, int y, int w, int h);
+void CIN_SetExtents (int handle, int x, int y, int w, int h, int module);
 void CIN_SetLooping (int handle, qboolean loop);
 void CIN_UploadCinematic(int handle);
 void CIN_CloseAllVideos(void);
@@ -601,6 +643,9 @@ qboolean Key_GetRepeat( void );
 void Key_SetRepeat( qboolean repeat );
 void LAN_LoadCachedServers( void );
 void LAN_SaveServersToCache( void );
+#ifdef USE_FLEXIBLE_DISPLAY
+void CL_AdjustFromCGame( float *x, float *y, float *w, float *h );
+#endif
 
 
 //

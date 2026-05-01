@@ -32,6 +32,8 @@ Suite 120, Rockville, Maryland 20850 USA.
 #include "client.h"
 
 qboolean	scr_initialized;		// ready to draw
+int			scr_placement;
+float		scr_nativeScale = 1.0f;
 
 cvar_t		*cl_timegraph;
 cvar_t		*cl_debuggraph;
@@ -41,36 +43,185 @@ cvar_t		*cl_graphshift;
 
 /*
 ================
+SCR_SetScreenPlacement
+================
+*/
+void SCR_SetScreenPlacement( int placement ) {
+	scr_placement = placement;
+}
+
+/*
+================
+SCR_SetNativeScale
+================
+*/
+void SCR_SetNativeScale( float scale ) {
+	scr_nativeScale = scale;
+}
+
+/*
+================
 SCR_AdjustFrom640
 
 Adjusted for resolution and screen aspect ratio
 ================
 */
 void SCR_AdjustFrom640( float *x, float *y, float *w, float *h ) {
-	float	xscale;
-	float	yscale;
+	int placement = scr_placement;
 
-#if 0
-		// adjust for wide screens
-		if ( cls.glconfig.vidWidth * 480 > cls.glconfig.vidHeight * 640 ) {
-			*x += 0.5 * ( cls.glconfig.vidWidth - ( cls.glconfig.vidHeight * 640 / 480 ) );
+	if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_STRETCH ) {
+		// scale for screen sizes (not aspect correct in wide screen)
+		if ( w != NULL ) {
+			*w *= cls.screenXScaleStretch;
 		}
-#endif
+		if ( x != NULL ) {
+			*x *= cls.screenXScaleStretch;
+		}
+	} else {
+		// scale for screen sizes
+		if ( placement & SCR_HOR_NATIVE ) {
+			if ( w != NULL ) {
+				*w *= scr_nativeScale;
+			}
 
-	// scale for screen sizes
-	xscale = cls.glconfig.vidWidth / 640.0;
-	yscale = cls.glconfig.vidHeight / 480.0;
-	if ( x ) {
-		*x *= xscale;
+			if ( x != NULL ) {
+				*x *= scr_nativeScale;
+			}
+		} else {
+			if ( w != NULL ) {
+				*w *= cls.screenXScale;
+			}
+
+			if ( x != NULL ) {
+				*x *= cls.screenXScale;
+			}
+		}
+
+		if ( x != NULL ) {
+			if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_CENTER ) {
+				*x += cls.screenXBias;
+			} else if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_RIGHT ) {
+				*x += cls.screenXBias*2;
+			}
+		}
 	}
-	if ( y ) {
-		*y *= yscale;
+
+	if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_STRETCH ) {
+		if ( h != NULL ) {
+			*h *= cls.screenYScaleStretch;
+		}
+		if ( y != NULL ) {
+			*y *= cls.screenYScaleStretch;
+		}
+	} else {
+		if ( placement & SCR_VERT_NATIVE ) {
+			if ( h != NULL ) {
+				*h *= scr_nativeScale;
+			}
+
+			if ( y != NULL ) {
+				*y *= scr_nativeScale;
+			}
+		} else {
+			if ( h != NULL ) {
+				*h *= cls.screenYScale;
+			}
+
+			if ( y != NULL ) {
+				*y *= cls.screenYScale;
+			}
+		}
+
+		if ( y != NULL ) {
+			if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_CENTER ) {
+				*y += cls.screenYBias;
+			} else if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_BOTTOM ) {
+				*y += cls.screenYBias*2;
+			}
+		}
 	}
-	if ( w ) {
-		*w *= xscale;
+}
+
+/*
+================
+SCR_AdjustTo640
+
+Adjusted for resolution and screen aspect ratio
+================
+*/
+void SCR_AdjustTo640( float *x, float *y, float *w, float *h ) {
+	int placement = scr_placement;
+
+	if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_STRETCH ) {
+		// scale for screen sizes (not aspect correct in wide screen)
+		if ( w != NULL ) {
+			*w /= cls.screenXScaleStretch;
+		}
+		if ( x != NULL ) {
+			*x /= cls.screenXScaleStretch;
+		}
+	} else {
+		if ( x != NULL ) {
+			if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_CENTER ) {
+				*x -= cls.screenXBias;
+			} else if ( ( placement & SCR_HOR_MASK ) == SCR_HOR_RIGHT ) {
+				*x -= cls.screenXBias*2;
+			}
+		}
+
+		// scale for screen sizes
+		if ( placement & SCR_HOR_NATIVE ) {
+			if ( w != NULL ) {
+				*w /= scr_nativeScale;
+			}
+
+			if ( x != NULL ) {
+				*x /= scr_nativeScale;
+			}
+		} else {
+			if ( w != NULL ) {
+				*w /= cls.screenXScale;
+			}
+
+			if ( x != NULL ) {
+				*x /= cls.screenXScale;
+			}
+		}
 	}
-	if ( h ) {
-		*h *= yscale;
+
+	if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_STRETCH ) {
+		if ( h != NULL ) {
+			*h /= cls.screenYScaleStretch;
+		}
+		if ( y != NULL ) {
+			*y /= cls.screenYScaleStretch;
+		}
+	} else {
+		if ( y != NULL ) {
+			if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_CENTER ) {
+				*y -= cls.screenYBias;
+			} else if ( ( placement & SCR_VERT_MASK ) == SCR_VERT_BOTTOM ) {
+				*y -= cls.screenYBias*2;
+			}
+		}
+
+		if ( placement & SCR_HOR_NATIVE ) {
+			if ( h != NULL ) {
+				*h /= scr_nativeScale;
+			}
+
+			if ( y != NULL ) {
+				*y /= scr_nativeScale;
+			}
+		} else {
+			if ( h != NULL ) {
+				*h /= cls.screenYScale;
+			}
+
+			if ( y != NULL ) {
+				*y /= cls.screenYScale;
+			}
+		}
 	}
 }
 
@@ -161,6 +312,39 @@ This will be called twice if rendering in stereo mode
 */
 void SCR_DrawScreenField( stereoFrame_t stereoFrame ) {
 	re.BeginFrame( stereoFrame );
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	// wide aspect ratio screens need to have the sides cleared
+	// unless they are displaying game renderings
+	if ( cl_flexibleDisplay->integer && ( clc.state != CA_ACTIVE || cl_viewmode->integer == 1 ) ) {
+		if ( cls.screenXBias || cls.screenYBias ) {
+			int left = cls.screenXBias + 0.5f;
+			int right = cls.glconfig.vidWidth - left;
+			int top = cls.screenYBias + 0.5f;
+			int bottom = cls.glconfig.vidHeight - top;
+
+			re.SetColor( g_color_table[0] );
+
+			if ( cls.screenXBias ) {
+				// clear left
+				re.DrawStretchPic( 0, 0, left, cls.glconfig.vidHeight, 0, 0, 0, 0, cls.whiteShader );
+
+				// clear right
+				re.DrawStretchPic( right, 0, cls.glconfig.vidWidth - right, cls.glconfig.vidHeight, 0, 0, 0, 0, cls.whiteShader );
+			}
+
+			if ( cls.screenYBias ) {
+				// clear top
+				re.DrawStretchPic( left, 0, right - left, top, 0, 0, 0, 0, cls.whiteShader );
+
+				// clear bottom
+				re.DrawStretchPic( left, bottom, right - left, cls.glconfig.vidHeight - bottom, 0, 0, 0, 0, cls.whiteShader );
+			}
+
+			re.SetColor( NULL );
+		}
+	}
+#endif
 
 	// draw UI and/or game scene
 	CL_CGameRendering(stereoFrame);

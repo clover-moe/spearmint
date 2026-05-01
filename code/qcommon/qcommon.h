@@ -83,6 +83,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 // In the future if the client-server protocol is modified, this may allow old and new engines to play together
 //#define LEGACY_PROTOCOL
 
+// This allows overriding CGame's widescreen presentation.
+//#define USE_FLEXIBLE_DISPLAY
+
 // URL protocol scheme. "quake3://connect/127.0.0.1"
 #define PROTOCOL_HANDLER			"spearmint"
 

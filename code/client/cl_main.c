@@ -109,6 +109,12 @@ cvar_t	*cl_loadingScreenIndex;
 
 cvar_t	*cl_rate;
 
+#ifdef USE_FLEXIBLE_DISPLAY
+cvar_t	*cl_viewsize;
+cvar_t	*cl_viewmode;
+cvar_t	*cl_flexibleDisplay;
+#endif
+
 clientActive_t		cl;
 clientConnection_t	clc;
 clientStatic_t		cls;
@@ -3263,6 +3269,40 @@ void CL_DrawLoadingScreen( void ) {
 
 /*
 ============
+CL_WindowResized
+============
+*/
+void CL_WindowResized( int width, int height ) {
+	cls.glconfig.vidWidth = width;
+	cls.glconfig.vidHeight = height;
+
+	//
+	// Scaling factors and offsets for SCR_AdjustFrom640()
+	//
+	cls.screenXScaleStretch = cls.glconfig.vidWidth * (1.0/640);
+	cls.screenYScaleStretch = cls.glconfig.vidHeight * (1.0/480);
+
+	if ( cls.glconfig.vidWidth * 480 > cls.glconfig.vidHeight * 640 ) {
+		cls.screenXScale = cls.screenXScaleStretch;
+		cls.screenYScale = cls.screenYScaleStretch;
+		// wide screen
+		cls.screenXBias = 0.5 * ( cls.glconfig.vidWidth - ( cls.glconfig.vidHeight * (640/(float)480) ) );
+		cls.screenXScale = cls.screenYScale;
+		// no narrow screen
+		cls.screenYBias = 0;
+	} else {
+		cls.screenXScale = cls.screenXScaleStretch;
+		cls.screenYScale = cls.screenYScaleStretch;
+		// narrow screen
+		cls.screenYBias = 0.5 * ( cls.glconfig.vidHeight - ( cls.glconfig.vidWidth * (480/(float)640) ) );
+		cls.screenYScale = cls.screenXScale;
+		// no wide screen
+		cls.screenXBias = 0;
+	}
+}
+
+/*
+============
 CL_InitRenderer
 ============
 */
@@ -3271,6 +3311,13 @@ void CL_InitRenderer( void ) {
 	re.BeginRegistration( &cls.glconfig );
 
 	cls.whiteShader = re.RegisterShader( "white" );
+
+#ifdef USE_FLEXIBLE_DISPLAY
+	// update latched value at vid_restart
+	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
+#endif
+
+	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
 
 	// draw loading screen when the game is starting up
 	if (!cls.drawnLoadingScreen) {
@@ -3287,6 +3334,8 @@ CL_GlconfigChanged
 void CL_GlconfigChanged( const glconfig_t *glconfig ) {
 	cls.glconfig = *glconfig;
 	CL_UpdateGlconfig();
+
+	CL_WindowResized( cls.glconfig.vidWidth, cls.glconfig.vidHeight );
 }
 
 /*
@@ -3340,6 +3389,10 @@ int CL_MaxSplitView(void) {
 	return CL_MAX_SPLITVIEW;
 }
 
+int CL_Ref_CIN_PlayCinematic( const char *arg, int x, int y, int w, int h, int systemBits ) {
+	return CIN_PlayCinematic( arg, x, y, w, h, systemBits, CIN_CLIENT );
+}
+
 /*
 ============
 CL_InitRef
@@ -3353,7 +3406,7 @@ void CL_InitRef( void ) {
 	// cinematic stuff
 
 	ri.CIN_UploadCinematic = CIN_UploadCinematic;
-	ri.CIN_PlayCinematic = CIN_PlayCinematic;
+	ri.CIN_PlayCinematic = CL_Ref_CIN_PlayCinematic;
 	ri.CIN_RunCinematic = CIN_RunCinematic;
   
 	ri.CL_WriteAVIVideoFrame = CL_WriteAVIVideoFrame;
@@ -3488,6 +3541,86 @@ static void CL_GenerateQKey(void)
 	}
 } 
 
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+=================
+CL_PrintViewMode
+=================
+*/
+static void CL_PrintViewMode( void ) {
+	switch ( cl_viewmode->integer ) {
+		case 1:
+			Com_Printf( "View-mode set to original 4:3 view/HUD\n" );
+			break;
+		case 2:
+			Com_Printf( "View-mode set to expanded view and 4:3 HUD\n" );
+			break;
+		case 3:
+			Com_Printf( "View-mode set to expanded view/HUD\n" );
+			break;
+		case 4:
+			Com_Printf( "View-mode set to expanded view and stretched HUD\n" );
+			break;
+		case 5:
+			// 640x480 video mode in fullscreen on a widescreen monitor is
+			// usually stretched to fill the whole screen.
+			Com_Printf( "View-mode set to original stretched view/HUD\n" );
+			break;
+		case 6:
+			Com_Printf( "View-mode set to original widescreen view/HUD\n" );
+			break;
+		default:
+			break;
+	}
+}
+
+/*
+=================
+CL_SizeDown_f
+=================
+*/
+static void CL_SizeUp_f (void) {
+	if ( cl_flexibleDisplay->integer ) {
+		if ( cl_viewsize->integer >= 100 ) {
+			if ( cl_viewmode->integer >= 6 ) {
+				return;
+			}
+
+			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer+1)));
+			CL_PrintViewMode();
+		} else {
+			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer+10)));
+		}
+	} else {
+		// run command in cgame
+		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
+			return;
+		}
+	}
+}
+
+/*
+=================
+CL_SizeDown_f
+=================
+*/
+static void CL_SizeDown_f (void) {
+	if ( cl_flexibleDisplay->integer ) {
+		if ( cl_viewmode->integer > 1 ) {
+			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer-1)));
+			CL_PrintViewMode();
+		} else {
+			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer-10)));
+		}
+	} else {
+		// run command in cgame
+		if ( com_cl_running && com_cl_running->integer && CL_GameCommand() ) {
+			return;
+		}
+	}
+}
+#endif
+
 /*
 ====================
 CL_Init
@@ -3616,6 +3749,14 @@ void CL_Init( void ) {
 	cl_voipProtocol = Cvar_Get ("cl_voipProtocol", cl_voip->integer ? "opus" : "", CVAR_USERINFO | CVAR_ROM);
 #endif
 
+#ifdef USE_FLEXIBLE_DISPLAY
+	cl_viewsize = Cvar_Get ("cg_viewsize", "100", CVAR_ARCHIVE );
+
+	cl_flexibleDisplay = Cvar_Get ("cl_flexibleDisplay", "1", CVAR_ARCHIVE | CVAR_LATCH);
+	cl_viewmode = cl_flexibleDisplay;
+	Cvar_CheckRange( cl_flexibleDisplay, 0, 6, qtrue );
+#endif
+
 	//
 	// register our commands
 	//
@@ -3656,6 +3797,11 @@ void CL_Init( void ) {
 	Cmd_AddCommand ("fs_referencedList", CL_ReferencedPK3List_f );
 	Cmd_AddCommand ("video", CL_Video_f );
 	Cmd_AddCommand ("stopvideo", CL_StopVideo_f );
+#ifdef USE_FLEXIBLE_DISPLAY
+	Cmd_AddCommand ("sizeup", CL_SizeUp_f );
+	Cmd_AddCommand ("sizedown", CL_SizeDown_f );
+#endif
+
 	CL_InitRef();
 
 	SCR_Init ();

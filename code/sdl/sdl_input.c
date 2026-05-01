@@ -436,7 +436,9 @@ static void IN_DeactivateMouse( qboolean isFullscreen, qboolean showSystemCursor
 
 	// Show the cursor when the mouse is disabled and not drawing UI cursor,
 	// but not when fullscreen
-	if( !isFullscreen )
+	if( isFullscreen )
+		SDL_ShowCursor( SDL_FALSE );
+	else
 		SDL_ShowCursor( showSystemCursor );
 
 	if( !mouseAvailable )
@@ -460,7 +462,6 @@ static void IN_DeactivateMouse( qboolean isFullscreen, qboolean showSystemCursor
 		mouseActive = qfalse;
 	}
 }
-
 
 /*
 ===============
@@ -1161,7 +1162,7 @@ static void IN_ProcessEvents( void )
 							Cvar_SetValue( "r_customheight", height );
 							Cvar_Set( "r_mode", "-1" );
 
-							re.ResizeWindow( e.window.data1, e.window.data2 );
+							re.ResizeWindow( width, height );
 						}
 						break;
 
