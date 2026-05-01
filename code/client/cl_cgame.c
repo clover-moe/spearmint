@@ -126,7 +126,7 @@ void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
 		placement = SCR_VERT_BOTTOM | SCR_HOR_CENTER;
 
 		// The scoreboard is drawn after the HUD.
-		if ( *y >= 60 && *y <= 69/*86*/ && *x >= 8 && *x < 320 ) {
+		if ( *y >= 60 && *y <= 69/*86*/ && cl_originx >= 8 && cl_originx < 320 ) {
 			// baseq3 scoreboard text or column header (center print is lower than this)
 			cl_enteredScoreboard = qtrue;
 		}
@@ -134,13 +134,13 @@ void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
 		// tournament names (A vs B) draw at y=70
 
 		// osp draws initial connect message here but it's not after the HUD
-		if ( *y >= 87 && *y <= 144 && *x >= 8 && *x < 320 && strcmp( gamedir, "osp" ) != 0 ) {
+		if ( *y >= 87 && *y <= 144 && cl_originx >= 8 && cl_originx < 320 && strcmp( gamedir, "osp" ) != 0 ) {
 			// baseq3 center print text (this is drawn instead of scoreboard)
 			// proball scoreboard
 			cl_enteredScoreboard = qtrue;
 		}
 
-		if ( *y < 380 - 22 - TINYCHAR_HEIGHT * 8 && *x >= 8 && *w > SCREEN_WIDTH / 2 && *h > 16 ) {
+		if ( *y < 380 - 22 - TINYCHAR_HEIGHT * 8 && cl_originx >= 8 && *w > SCREEN_WIDTH / 2 && *h > 16 ) {
 			// Team Arena scoreboard
 			// if it's above the statusbar and area for cg_drawTeamOverlay 3
 			// and over half the screen width,  it's probably the scoreboard background.
