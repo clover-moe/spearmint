@@ -1652,6 +1652,24 @@ void RE_EndRegistration( void ) {
 }
 
 
+#ifdef USE_FLEXIBLE_DISPLAY
+/*
+=============
+RE_ResizeWindow
+=============
+*/
+qboolean RE_ResizeWindow( int width, int height ) {
+	if ( glRefConfig.framebufferObject ) {
+		// TODO: Resize all screen-sized FBOs and attached images
+		//       instead of returning qfalse which runs vid_restart.
+		return qfalse;
+	}
+
+	return GLimp_ResizeWindow( width, height );
+}
+#endif
+
+
 /*
 @@@@@@@@@@@@@@@@@@@@@
 GetRefAPI
@@ -1717,8 +1735,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.TakeVideoFrame = RE_TakeVideoFrame;
 
 #ifdef USE_FLEXIBLE_DISPLAY
-	// TODO: This needs to resize all screen-sized FBOs and attached images.
-	re.ResizeWindow = NULL; //GLimp_ResizeWindow;#endif
+	re.ResizeWindow = RE_ResizeWindow;
 #endif
 
 	return &re;
