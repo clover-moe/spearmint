@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <sys/wait.h>
 #include <sys/resource.h>
 #include <time.h>
+#include <dlfcn.h>
 
 qboolean stdinIsATTY;
 
@@ -995,6 +996,44 @@ qboolean Sys_PIDIsRunning( int pid )
 {
 	return kill( pid, 0 ) == 0;
 }
+
+#ifdef DEDICATED
+/*
+==============
+Sys_LoadLibrary
+==============
+*/
+void *Sys_LoadLibrary( const char *f ) {
+	return dlopen( f, RTLD_NOW );
+}
+
+/*
+==============
+Sys_UnloadLibrary
+==============
+*/
+void Sys_UnloadLibrary( void *h ) {
+	dlclose( h );
+}
+
+/*
+==============
+Sys_LoadFunction
+==============
+*/
+void *Sys_LoadFunction( void *h, const char *fn ) {
+	return dlsym( h, fn );
+}
+
+/*
+==============
+Sys_LibraryError
+==============
+*/
+const char *Sys_LibraryError( void ) {
+	return dlerror();
+}
+#endif
 
 /*
 =================

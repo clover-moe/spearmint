@@ -930,6 +930,44 @@ qboolean Sys_PIDIsRunning( int pid )
 	return qfalse;
 }
 
+#ifdef DEDICATED
+/*
+==============
+Sys_LoadLibrary
+==============
+*/
+void *Sys_LoadLibrary( const char *f ) {
+	return LoadLibrary( f );
+}
+
+/*
+==============
+Sys_UnloadLibrary
+==============
+*/
+void Sys_UnloadLibrary( void *h ) {
+	FreeLibrary( (HMODULE)h );
+}
+
+/*
+==============
+Sys_LoadFunction
+==============
+*/
+void *Sys_LoadFunction( void *h, const char *fn ) {
+	return GetProcAddress( (HMODULE)h, fn );
+}
+
+/*
+==============
+Sys_LibraryError
+==============
+*/
+const char *Sys_LibraryError( void ) {
+	return "unknown";
+}
+#endif
+
 /*
 =================
 Sys_DllExtension
