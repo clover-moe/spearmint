@@ -56,6 +56,7 @@ char *Sys_StripAppBundle( char *pwd );
 
 void Sys_GLimpSafeInit( void );
 void Sys_GLimpInit( void );
+void Sys_CommandLineInit( int *argcP, char ***argvP );
 void Sys_PlatformInit( void );
 void Sys_PlatformExit( void );
 void Sys_SigHandler( int signal ) __attribute__ ((noreturn));

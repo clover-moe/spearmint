@@ -921,6 +921,15 @@ void Sys_SetFloatEnv(void)
 
 /*
 ==============
+Sys_CommandLineInit
+==============
+*/
+void Sys_CommandLineInit( int *argcP, char ***argvP ) {
+	// no change, args are valid from main()
+}
+
+/*
+==============
 Sys_PlatformInit
 
 Unix specific initialisation

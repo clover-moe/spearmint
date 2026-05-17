@@ -69,6 +69,11 @@ static char microsoftStorePath[MAX_OSPATH] = { 0 };
 static UINT timerResolution = 0;
 #endif
 
+#if defined(DEDICATED) && defined(UNICODE)
+static char **sys_argv;
+static int sys_argc = 0;
+#endif
+
 /*
 ================
 Sys_SetFPUCW
@@ -1100,6 +1105,74 @@ void Sys_GLimpInit( void )
 
 /*
 ==============
+Sys_CommandLineInit
+
+Get UTF-16 args in dedicated server,
+client args are handled by SDL2main
+==============
+*/
+void Sys_CommandLineInit( int *argcP, char ***argvP ) {
+#if defined(DEDICATED) && defined(UNICODE)
+	int i, size;
+	WCHAR **wargv;
+
+	sys_argc = 0;
+	wargv = CommandLineToArgvW( GetCommandLineW(), &sys_argc );
+
+	sys_argv = calloc( sys_argc + 1, sizeof( char * ) );
+	if ( !sys_argv ) {
+		// Out of memory
+		sys_argc = 0;
+		return;
+	}
+
+	for ( i = 0; i < sys_argc; i++ ) {
+		size = WideCharToMultiByte( CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL );
+
+		sys_argv[i] = malloc( size );
+		if ( !sys_argv[i] ) {
+			// Out of memory
+			return;
+		}
+
+		Sys_WideToUTF8( sys_argv[i], wargv[i], size );
+	}
+
+	sys_argv[sys_argc] = NULL;
+
+	LocalFree( wargv );
+	wargv = NULL;
+
+	*argcP = sys_argc;
+	*argvP = sys_argv;
+#endif
+}
+
+/*
+==============
+Sys_CommandLineExit
+==============
+*/
+static void Sys_CommandLineExit( void ) {
+#if defined(DEDICATED) && defined(UNICODE)
+	int i;
+
+	if ( sys_argv ) {
+		for ( i = 0; i < sys_argc; i++ ) {
+			free( sys_argv[i] );
+			sys_argv[i] = NULL;
+		}
+
+		free( sys_argv );
+		sys_argv = NULL;
+	}
+
+	sys_argc = 0;
+#endif
+}
+
+/*
+==============
 Sys_PlatformInit
 
 Windows specific initialisation
@@ -1149,6 +1222,8 @@ void Sys_PlatformExit( void )
 	if(timerResolution)
 		timeEndPeriod(timerResolution);
 #endif
+
+	Sys_CommandLineExit();
 }
 
 /*

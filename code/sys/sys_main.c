@@ -772,6 +772,8 @@ int main( int argc, char **argv )
 	char *protocolCommand = NULL;
 #endif
 
+	Sys_CommandLineInit( &argc, &argv );
+
 	extern void Sys_LaunchAutoupdater(int argc, char **argv);
 	Sys_LaunchAutoupdater(argc, argv);
 
