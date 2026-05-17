@@ -1171,6 +1171,11 @@ dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *t
 void Sys_RemovePIDFile( const char *gamedir );
 void Sys_InitPIDFile( const char *gamedir );
 
+#if defined(_WIN32) && defined(UNICODE)
+qboolean Sys_WideToUTF8( char *str, const unsigned short *wstr, int strCount );
+qboolean Sys_UTF8ToWide( unsigned short *wstr, const char *str, int wstrCount );
+#endif
+
 /* This is based on the Adaptive Huffman algorithm described in Sayood's Data
  * Compression book.  The ranks are not actually stored, but implicitly defined
  * by the location of a node within a doubly-linked list */

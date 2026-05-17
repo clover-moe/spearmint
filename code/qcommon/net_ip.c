@@ -336,7 +336,17 @@ static qboolean Sys_StringToSockaddr(const char *s, struct sockaddr *sadr, int s
 			Com_Printf("Sys_StringToSockaddr: Error resolving %s: No address of required type found.\n", s);
 	}
 	else
+	{
+#if defined(_WIN32) && defined(UNICODE)
+		char error[256];
+
+		Sys_WideToUTF8(error, gai_strerrorW(retval), sizeof(error));
+
+		Com_Printf("Sys_StringToSockaddr: Error resolving %s: %s\n", s, error);
+#else
 		Com_Printf("Sys_StringToSockaddr: Error resolving %s: %s\n", s, gai_strerror(retval));
+#endif
+	}
 	
 	if(res)
 		freeaddrinfo(res);

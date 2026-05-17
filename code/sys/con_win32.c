@@ -215,10 +215,18 @@ static void CON_Show( void )
 			if( i + 1 < qconsole_linelen && Q_IsColorString( qconsole_line + i ) )
 				attrib = CON_ColorCharToAttrib( *( qconsole_line + i + 1 ) );
 
+#ifdef UNICODE
+			line[ i ].Char.UnicodeChar = qconsole_line[ i ];
+#else
 			line[ i ].Char.AsciiChar = qconsole_line[ i ];
+#endif
 		}
 		else
+#ifdef UNICODE
+			line[ i ].Char.UnicodeChar = ' ';
+#else
 			line[ i ].Char.AsciiChar = ' ';
+#endif
 
 		line[ i ].Attributes = attrib;
 	}
@@ -313,7 +321,7 @@ void CON_Init( void )
 	qconsole_attrib = info.wAttributes;
 	qconsole_backgroundAttrib = qconsole_attrib & (BACKGROUND_BLUE|BACKGROUND_GREEN|BACKGROUND_RED|BACKGROUND_INTENSITY);
 
-	SetConsoleTitle(CLIENT_WINDOW_TITLE " Dedicated Server Console");
+	SetConsoleTitle( TEXT( CLIENT_WINDOW_TITLE " Dedicated Server Console" ) );
 
 	// initialize history
 	for( i = 0; i < QCONSOLE_HISTORY; i++ )
@@ -490,6 +498,9 @@ Set text colors based on Q3 color codes
 void CON_WindowsColorPrint( const char *msg )
 {
 	static char buffer[ MAXPRINTMSG ];
+#ifdef UNICODE
+	static WCHAR wbuffer[ MAXPRINTMSG ];
+#endif
 	int         length = 0;
 
 	while( *msg )
@@ -502,7 +513,12 @@ void CON_WindowsColorPrint( const char *msg )
 			if( length > 0 )
 			{
 				buffer[ length ] = '\0';
+#ifdef UNICODE
+				Sys_UTF8ToWide( wbuffer, buffer, ARRAY_LEN( wbuffer ) );
+				fputws( wbuffer, stderr );
+#else
 				fputs( buffer, stderr );
+#endif
 				length = 0;
 			}
 
@@ -510,7 +526,11 @@ void CON_WindowsColorPrint( const char *msg )
 			{
 				// Reset color and then add the newline
 				SetConsoleTextAttribute( qconsole_hout, CON_ColorCharToAttrib( COLOR_WHITE ) );
+#ifdef UNICODE
+				fputws( L"\n", stderr );
+#else
 				fputs( "\n", stderr );
+#endif
 				msg++;
 			}
 			else
@@ -535,7 +555,12 @@ void CON_WindowsColorPrint( const char *msg )
 	if( length > 0 )
 	{
 		buffer[ length ] = '\0';
+#ifdef UNICODE
+		Sys_UTF8ToWide( wbuffer, buffer, ARRAY_LEN( wbuffer ) );
+		fputws( wbuffer, stderr );
+#else
 		fputs( buffer, stderr );
+#endif
 	}
 }
 

@@ -800,6 +800,8 @@ ifdef MINGW
     BASE_CFLAGS += -m64
   endif
 
+  BASE_CFLAGS += -DUNICODE -D_UNICODE
+
   # libmingw32 must be linked before libSDLmain
   CLIENT_LIBS += -lmingw32
   RENDERER_LIBS += -lmingw32
