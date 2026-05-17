@@ -351,14 +351,19 @@ char *CON_Input( void )
 			{
 				if (TTY_con.cursor > 0)
 				{
-					TTY_con.cursor--;
-					TTY_con.buffer[TTY_con.cursor] = '\0';
-					CON_Back();
+					// remove all UTF-8 continuation bytes
+					unsigned char c;
+					do {
+						TTY_con.cursor--;
+						c = TTY_con.buffer[TTY_con.cursor];
+						TTY_con.buffer[TTY_con.cursor] = '\0';
+						CON_Back();
+					} while ( TTY_con.cursor > 0 && ( c & 0xC0 ) == 0x80 );
 				}
 				return NULL;
 			}
 			// check if this is a control char
-			if ((key) && (key) < ' ')
+			if ((key) > 0 && (key) < ' ')
 			{
 				if (key == '\n')
 				{
