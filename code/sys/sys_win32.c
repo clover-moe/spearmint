@@ -976,14 +976,32 @@ void Sys_ErrorDialog( const char *error )
 			"Error" ) == DR_YES )
 	{
 		HGLOBAL memoryHandle;
-		char *clipMemory;
+		TCHAR *clipMemory;
+		int clipCount;
+#ifdef UNICODE
+		char *utf8buf;
+#endif
 
-		memoryHandle = GlobalAlloc( GMEM_MOVEABLE|GMEM_DDESHARE, CON_LogSize( ) + 1 );
-		clipMemory = (char *)GlobalLock( memoryHandle );
+		clipCount = ( CON_LogSize( ) + 1 );
+
+#ifdef UNICODE
+		utf8buf = (char*)malloc( clipCount );
+		if ( !utf8buf ) {
+			return;
+		}
+#endif
+
+		memoryHandle = GlobalAlloc( GMEM_MOVEABLE|GMEM_DDESHARE|GMEM_ZEROINIT,
+									clipCount * sizeof( TCHAR ) );
+		clipMemory = (TCHAR *)GlobalLock( memoryHandle );
 
 		if( clipMemory )
 		{
+#ifdef UNICODE
+			char *p = utf8buf;
+#else
 			char *p = clipMemory;
+#endif
 			char buffer[ 1024 ];
 			unsigned int size;
 
@@ -995,13 +1013,24 @@ void Sys_ErrorDialog( const char *error )
 
 			*p = '\0';
 
-			// TODO?: Convert console log to WCHAR / CF_UNICODETEXT?
+#ifdef UNICODE
+			Sys_UTF8ToWide( clipMemory, utf8buf, clipCount );
+#endif
+
 			if( OpenClipboard( NULL ) && EmptyClipboard( ) )
+#ifdef UNICODE
+				SetClipboardData( CF_UNICODETEXT, memoryHandle );
+#else
 				SetClipboardData( CF_TEXT, memoryHandle );
+#endif
 
 			GlobalUnlock( clipMemory );
 			CloseClipboard( );
 		}
+
+#ifdef UNICODE
+		free( utf8buf );
+#endif
 	}
 }
 
