@@ -72,7 +72,7 @@ void Log_Open(char *filename)
 		return;
 	} //end if
 	ospath = FS_BuildOSPath(Cvar_VariableString("fs_homepath"), Cvar_VariableString("fs_game"), filename);
-	logfile.fp = fopen(ospath, "wb");
+	logfile.fp = Sys_FOpen(ospath, "wb");
 	if (!logfile.fp)
 	{
 		botimport.Print(PRT_ERROR, "can't open the log file %s\n", filename);

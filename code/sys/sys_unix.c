@@ -201,7 +201,7 @@ qboolean Sys_RandomBytes( byte *string, int len )
 {
 	FILE *fp;
 
-	fp = fopen( "/dev/urandom", "r" );
+	fp = Sys_FOpen( "/dev/urandom", "r" );
 	if( !fp )
 		return qfalse;
 
@@ -328,7 +328,7 @@ FILE *Sys_Mkfifo( const char *ospath )
 	if( result != 0 )
 		return NULL;
 
-	fifo = fopen( ospath, "w+" );
+	fifo = Sys_FOpen( ospath, "w+" );
 	if( fifo )
 	{
 		fn = fileno( fifo );

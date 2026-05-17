@@ -219,7 +219,7 @@ static qboolean Sys_WritePIDFile( const char *gamedir )
 		return qfalse;
 
 	// First, check if the pid file is already there
-	if( ( f = fopen( pidFile, "r" ) ) != NULL )
+	if( ( f = Sys_FOpen( pidFile, "r" ) ) != NULL )
 	{
 		char  pidBuffer[ 64 ] = { 0 };
 		int   pid;
@@ -241,7 +241,7 @@ static qboolean Sys_WritePIDFile( const char *gamedir )
 		return 0;
 	}
 
-	if( ( f = fopen( pidFile, "w" ) ) != NULL )
+	if( ( f = Sys_FOpen( pidFile, "w" ) ) != NULL )
 	{
 		fprintf( f, "%d", Sys_PID( ) );
 		fclose( f );
