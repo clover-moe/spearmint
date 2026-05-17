@@ -423,6 +423,16 @@ FILE *Sys_FOpen( const char *ospath, const char *mode ) {
 
 /*
 ==============
+Sys_Remove
+==============
+*/
+void Sys_Remove( const char *ospath )
+{
+	remove( ospath );
+}
+
+/*
+==============
 Sys_Mkdir
 ==============
 */

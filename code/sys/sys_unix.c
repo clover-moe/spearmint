@@ -294,6 +294,16 @@ FILE *Sys_FOpen( const char *ospath, const char *mode ) {
 }
 
 /*
+==============
+Sys_Remove
+==============
+*/
+void Sys_Remove( const char *ospath )
+{
+	remove( ospath );
+}
+
+/*
 ==================
 Sys_Mkdir
 ==================
@@ -322,7 +332,7 @@ FILE *Sys_Mkfifo( const char *ospath )
 
 	// if file already exists AND is a pipefile, remove it
 	if( !stat( ospath, &buf ) && S_ISFIFO( buf.st_mode ) )
-		FS_Remove( ospath );
+		Sys_Remove( ospath );
 
 	result = mkfifo( ospath, 0600 );
 	if( result != 0 )
