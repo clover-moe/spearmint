@@ -25,6 +25,7 @@ Quick start for servers:
 Quick start for clients:
     - run a recent build of ioquake3.
     - Make sure your network settings are set to broadband.
+    - +set cl_voip 1
     - +set s_useOpenAL 1
     - \bind q "+voiprecord"
     - Hook up a microphone, connect to a VoIP-supporting server.
@@ -37,7 +38,7 @@ sv_voip: set to "1" (the default) to enable server-side VoIP support. Set to
          "0" to disable. Without this, all VoIP packets are refused by the
          server, which means no one gets to use in-game VoIP.
 
-cl_voip: set to "1" (the default) to enable client-side VoIP support. Set to "0"
+cl_voip: set to "1" to enable client-side VoIP support. Set to "0" (the default)
       to disable. Without this, you will neither be able to transmit voice nor
       hear other people.
 
