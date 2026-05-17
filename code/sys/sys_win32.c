@@ -1015,6 +1015,10 @@ Display a win32 dialog box
 dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *title )
 {
 	UINT uType;
+#ifdef UNICODE
+	WCHAR wmessage[4096];
+	WCHAR wtitle[1024];
+#endif
 
 	switch( type )
 	{
@@ -1026,7 +1030,14 @@ dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *t
 		case DT_OK_CANCEL: uType = MB_ICONWARNING|MB_OKCANCEL; break;
 	}
 
+#ifdef UNICODE
+	Sys_UTF8ToWide( wmessage, message, ARRAY_LEN( wmessage ) );
+	Sys_UTF8ToWide( wtitle, title, ARRAY_LEN( wtitle ) );
+
+	switch( MessageBoxW( NULL, wmessage, wtitle, uType ) )
+#else
 	switch( MessageBoxA( NULL, message, title, uType ) )
+#endif
 	{
 		default:
 		case IDOK:      return DR_OK;
