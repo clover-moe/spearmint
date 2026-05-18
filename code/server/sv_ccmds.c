@@ -1260,6 +1260,14 @@ static void SV_ConSay_f(void) {
 
 	strcat(text, p);
 
+	// display it the same as the client would see it
+	// (non-ASCII are replaced with period in the network protocol)
+	for ( p = text; *p; p++ ) {
+		if ( *p & 0x80 ) {
+			*p = '.';
+		}
+	}
+
 	Com_Printf("%s\n", text);
 	SV_SendServerCommand(NULL, "chat \"%s\"", text);
 }
