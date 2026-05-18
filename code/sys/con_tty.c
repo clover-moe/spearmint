@@ -357,8 +357,9 @@ char *CON_Input( void )
 						TTY_con.cursor--;
 						c = TTY_con.buffer[TTY_con.cursor];
 						TTY_con.buffer[TTY_con.cursor] = '\0';
-						CON_Back();
 					} while ( TTY_con.cursor > 0 && ( c & 0xC0 ) == 0x80 );
+
+					CON_Back();
 				}
 				return NULL;
 			}
