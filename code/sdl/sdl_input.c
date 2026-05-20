@@ -1192,12 +1192,7 @@ static void IN_ProcessEvents( void )
 							}
 							else
 							{
-								const char *p = utf8;
-
-								while ( *p ) {
-									Com_QueueEvent( in_eventTime, SE_CHAR, *p & 255, 0, 0, NULL );
-									p++;
-								}
+								Com_QueueEvent( in_eventTime, SE_CHAR, utf32, 0, 0, NULL );
 							}
 						}
           }
@@ -1429,7 +1424,7 @@ void IN_Init( void *windowData )
 	Com_DPrintf( "\n------- Input Initialization -------\n" );
 
 	in_keyboardDebug = Cvar_Get( "in_keyboardDebug", "0", CVAR_ARCHIVE );
-	in_utf8 = Cvar_Get( "in_utf8", "0", CVAR_ARCHIVE );
+	in_utf8 = Cvar_Get( "in_utf8", "1", CVAR_ARCHIVE );
 
 	// mouse variables
 	in_mouse = Cvar_Get( "in_mouse", "1", CVAR_ARCHIVE );

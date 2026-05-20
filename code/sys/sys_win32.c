@@ -1213,6 +1213,9 @@ Check if filename is an absolute path.
 */
 qboolean Sys_PathIsAbsolute( const char *path ) {
 	char filename[MAX_PATH];
+#ifdef UNICODE
+	WCHAR wfilename[MAX_PATH];
+#endif
 
 	if ( !path ) {
 		return qfalse;
@@ -1220,5 +1223,13 @@ qboolean Sys_PathIsAbsolute( const char *path ) {
 
 	Q_strncpyz( filename, path, sizeof( filename ) );
 
+#ifdef UNICODE
+	if ( !Sys_UTF8ToWide( wfilename, filename, ARRAY_LEN( wfilename ) ) ) {
+		return qfalse;
+	}
+
+	return ( PathIsRelativeW( wfilename ) == FALSE );
+#else
 	return ( PathIsRelative( filename ) == FALSE );
+#endif
 }
