@@ -6,7 +6,7 @@ jobs:
     name: Linux
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -15,7 +15,7 @@ jobs:
       run: make release -j$(nproc)
       env:
         ARCHIVE: 1
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: Linux
         path: build/*.zip
@@ -23,7 +23,7 @@ jobs:
     name: Windows (x86)
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: msys2/setup-msys2@v2
       with:
         release: false
@@ -35,7 +35,7 @@ jobs:
         make release -j $NUMBER_OF_PROCESSORS
       env:
         ARCHIVE: 1
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: Windows-x86
         path: build/*.zip
@@ -43,7 +43,7 @@ jobs:
     name: Windows (x86_64)
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: msys2/setup-msys2@v2
       with:
         release: false
@@ -55,7 +55,7 @@ jobs:
         make release -j $NUMBER_OF_PROCESSORS
       env:
         ARCHIVE: 1
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: Windows-x86_64
         path: build/*.zip
@@ -63,18 +63,18 @@ jobs:
     name: macOS (Universal 2)
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Compile
       run: ./make-macosx-ub2.sh
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: macOS-Universal-2
         path: build/release-darwin-universal2/*.app/
   web:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
+    - uses: actions/checkout@v6
       with:
         repository: emscripten-core/emsdk
         path: emsdk
@@ -89,7 +89,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         emmake make release -j$(nproc)
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: Web
         path: build/*.zip
