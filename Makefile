@@ -2979,6 +2979,7 @@ $(B)/renderergl1/%.o: $(RGL1DIR)/%.c
 $(B)/renderergl1/tr_altivec.o: $(RGL1DIR)/tr_altivec.c
 	$(DO_REF_CC_ALTIVEC)
 
+.PRECIOUS: $(B)/renderergl2/glsl/%.c
 $(B)/renderergl2/glsl/%.c: $(RGL2DIR)/glsl/%.glsl $(STRINGIFY)
 	$(DO_REF_STR)
 
