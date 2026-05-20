@@ -144,15 +144,15 @@ VERSION=1.36
 endif
 
 ifndef CLIENTBIN
-CLIENTBIN=liliumarena
+CLIENTBIN=lilium-arena
 endif
 
 ifndef SERVERBIN
-SERVERBIN=liliumarena-server
+SERVERBIN=lilium-arena-server
 endif
 
 ifndef RENDERER_PREFIX
-RENDERER_PREFIX=liliumarena-renderer-
+RENDERER_PREFIX=lilium-arena-renderer-
 endif
 
 ifndef BASEGAME
@@ -1170,7 +1170,7 @@ endif
 TARGETS =
 
 ifndef FULLBINEXT
-  FULLBINEXT=.$(ARCH)$(BINEXT)
+  FULLBINEXT=_$(ARCH)$(BINEXT)
 endif
 
 ifndef SHLIBNAME

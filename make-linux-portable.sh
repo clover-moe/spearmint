@@ -3,9 +3,9 @@ ARCH=$1
 ERROR=0
 
 # Adjust these for the project.
-CLIENTBIN=liliumarena
-SERVERBIN=liliumarena-server
-RENDERER_PREFIX=liliumarena-renderer-
+CLIENTBIN=lilium-arena
+SERVERBIN=lilium-arena-server
+RENDERER_PREFIX=lilium-arena-renderer-
 
 if [ -z "$ARCH" ] || [ $ERROR -ne 0 ]; then
 	echo "Usage: make-linux-portable.sh <arch> [make options]"
@@ -86,11 +86,11 @@ if [ $VERBOSE -eq 1 ] ; then
 	# Find glibc lines, remove text before GLIBC, then sort by required glibc version
 	# "sort -t _ -k 2 -V" is short form of "sort --field-separator='_' --key=2 --version-sort"
 	echo
-	echo "$SERVERBIN.$ARCH:"
-	objdump -T build/release-linux-$ARCH/$SERVERBIN.$ARCH | grep GLIBC | sed -e "s/.*GLIBC_/GLIBC_/g" | sort -t _ -k 2 -V
+	echo "${SERVERBIN}_$ARCH:"
+	objdump -T build/release-linux-$ARCH/${SERVERBIN}_$ARCH | grep GLIBC | sed -e "s/.*GLIBC_/GLIBC_/g" | sort -t _ -k 2 -V
 	echo
-	echo "$CLIENTBIN.$ARCH:"
-	objdump -T build/release-linux-$ARCH/$CLIENTBIN.$ARCH | grep GLIBC | sed -e "s/.*GLIBC_/GLIBC_/g" | sort -t _ -k 2 -V
+	echo "${CLIENTBIN}_$ARCH:"
+	objdump -T build/release-linux-$ARCH/${CLIENTBIN}_$ARCH | grep GLIBC | sed -e "s/.*GLIBC_/GLIBC_/g" | sort -t _ -k 2 -V
 	echo
 	echo "${RENDERER_PREFIX}opengl1_$ARCH.so:"
 	objdump -T build/release-linux-$ARCH/${RENDERER_PREFIX}opengl1_$ARCH.so | grep GLIBC | sed -e "s/.*GLIBC_/GLIBC_/g" | sort -t _ -k 2 -V
@@ -104,8 +104,8 @@ fi
 
 # Find glibc lines, remove text before and including GLIBC_, remove trailing function name, sort by required glibc version, then grab the last (highest) version
 # "sort -uV" is short form of "sort --unique --version-sort"
-GLIBC_SERVER=$(objdump -T build/release-linux-$ARCH/$SERVERBIN.$ARCH | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
-GLIBC_C1=$(objdump -T build/release-linux-$ARCH/$CLIENTBIN.$ARCH | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
+GLIBC_SERVER=$(objdump -T build/release-linux-$ARCH/${SERVERBIN}_$ARCH | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
+GLIBC_C1=$(objdump -T build/release-linux-$ARCH/${CLIENTBIN}_$ARCH | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
 GLIBC_C2=$(objdump -T build/release-linux-$ARCH/${RENDERER_PREFIX}opengl1_$ARCH.so | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
 GLIBC_C3=$(objdump -T build/release-linux-$ARCH/${RENDERER_PREFIX}opengl2_$ARCH.so | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
 GLIBC_C4=$(objdump -T build/release-linux-$ARCH/lib/$ARCH/libSDL2-2.0.so.0 | grep GLIBC | sed -e "s/.*GLIBC_//g" | cut -d' ' -f1 | sort -uV | tail -1)
