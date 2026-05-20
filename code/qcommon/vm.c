@@ -385,8 +385,35 @@ intptr_t VM_QvmSyscall( intptr_t *args ) {
 		Com_Memcpy( VMA(1), VMA(2), args[3] );
 		return args[1];
 	case TRAP_STRNCPY:
+#ifdef QVM_STRNCPY_OVERLAP
+		// Handle overlapping src and dest as the C standard library may
+		// not support it and some mods may do this.
+		// (Native libraries and QVMs without QVM_STRNCPY_OVERLAP defined
+		// report an error in Q_strncpyz() instead.)
+		{
+			char *dest = VMA(1);
+			const char *src = VMA(2);
+			unsigned int destsize = args[3];
+
+			if ( dest < src + destsize && src < dest + destsize ) {
+				const char *srcend = (const char *)memchr( src, '\0', destsize );
+				unsigned int srclen = srcend ? (unsigned int)( srcend - src ) : destsize;
+
+				if ( dest < src + srclen ) {
+					memmove( dest, src, srclen );
+					memset( dest + srclen, '\0', destsize - srclen );
+
+					return args[1];
+				}
+			}
+
+			strncpy( dest, src, destsize );
+			return args[1];
+		}
+#else
 		strncpy( VMA(1), VMA(2), args[3] );
 		return args[1];
+#endif
 	case TRAP_SIN:
 		return FloatAsInt( sin( VMF(1) ) );
 	case TRAP_COS:
@@ -1149,7 +1176,7 @@ void VM_LogSyscalls( int *args ) {
 	static	FILE	*f;
 
 	if ( !f ) {
-		f = fopen("syscalls.log", "w" );
+		f = Sys_FOpen("syscalls.log", "w" );
 	}
 	callnum++;
 	fprintf(f, "%i: %p (%i) = %i %i %i %i\n", callnum, (void*)(args - (int *)currentVM->dataBase),

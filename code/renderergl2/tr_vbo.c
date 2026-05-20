@@ -98,6 +98,12 @@ void Vao_SetVertexPointers(vao_t *vao)
 
 			if (!glRefConfig.vertexArrayObject || vao == tess.vao)
 				glState.vertexAttribsEnabled &= ~attribBit;
+
+			// set vertex color to white for models without vertex colors
+			if (attribIndex == ATTR_INDEX_COLOR) {
+				float white[4] = { 1, 1, 1, 1 };
+				qglVertexAttrib4fv(attribIndex, white);
+			}
 		}
 	}
 }

@@ -83,6 +83,9 @@ Suite 120, Rockville, Maryland 20850 USA.
 // In the future if the client-server protocol is modified, this may allow old and new engines to play together
 //#define LEGACY_PROTOCOL
 
+// This handles overlapping strncpy() in QVMs.
+//#define QVM_STRNCPY_OVERLAP
+
 // This allows overriding CGame's widescreen presentation.
 //#define USE_FLEXIBLE_DISPLAY
 
@@ -1288,6 +1291,7 @@ qboolean	Sys_IsLANAddress (netadr_t adr);
 void		Sys_ShowIP(void);
 
 FILE	*Sys_FOpen( const char *ospath, const char *mode );
+int		Sys_Remove( const char *ospath );
 qboolean Sys_Mkdir( const char *path );
 qboolean Sys_Rmdir( const char *path );
 FILE	*Sys_Mkfifo( const char *ospath );
@@ -1335,6 +1339,11 @@ dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *t
 
 void Sys_RemovePIDFile( const char *gamedir );
 void Sys_InitPIDFile( const char *gamedir );
+
+#if defined(_WIN32) && defined(UNICODE)
+qboolean Sys_WideToUTF8( char *str, const unsigned short *wstr, int strCount );
+qboolean Sys_UTF8ToWide( unsigned short *wstr, const char *str, int wstrCount );
+#endif
 
 /*
 ==============================================================

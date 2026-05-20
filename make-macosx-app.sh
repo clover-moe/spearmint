@@ -1,5 +1,24 @@
 #!/bin/bash
 
+PRODUCT_NAME="Spearmint"
+VERSION="1.1dev"
+CLIENTBIN="spearmint"
+SERVERBIN="spearmint-server"
+RENDERER_PREFIX="spearmint-renderer-"
+BASEGAME="baseq3"
+MISSIONPACK="missionpack"
+PROTOCOL_HANDLER="spearmint"
+BUILD_SERVER=1
+BUILD_RENDERER_OPENGL1=1
+BUILD_RENDERER_OPENGL2=1
+BUILD_BASEGAME=0
+BUILD_MISSIONPACK=0
+
+# set this to a reverse URL that you own, i.e. io.github.<yourusername>.${CLIENTBIN}
+BUNDLE_IDENTIFIER="moe.clover.${CLIENTBIN}"
+
+BUNDLE_COPYRIGHT="${PRODUCT_NAME} Copyright © 1999-2005 id Software, 2005-2025 ioquake3 contributors, 2008-2026 zturtleman."
+
 # Let's make the user give us a target to work with.
 # architecture is assumed universal if not specified, and is optional.
 # if arch is defined, it we will store the .app bundle in the target arch build directory
@@ -153,20 +172,20 @@ fi
 
 AVAILABLE_ARCHS=""
 
-IOQ3_VERSION=`grep '^VERSION=' Makefile | sed -e 's/.*=\(.*\)/\1/'`
-IOQ3_RENDERER_PREFIX=`grep '^RENDERER_PREFIX=' Makefile | sed -e 's/.*=\(.*\)/\1/'`
-IOQ3_CLIENT_ARCHS=""
-IOQ3_SERVER_ARCHS=""
-IOQ3_RENDERER_GL1_ARCHS=""
-IOQ3_RENDERER_GL2_ARCHS=""
+CLIENTBIN_FILES=""
+SERVERBIN_FILES=""
+OPENGL1_FILES=""
+OPENGL2_FILES=""
+BASE_CGAME_FILES=""
+BASE_GAME_FILES=""
+BASE_UI_FILES=""
+MP_CGAME_FILES=""
+MP_GAME_FILES=""
+MP_UI_FILES=""
 
-RENDERER_OPENGL="${IOQ3_RENDERER_PREFIX}opengl"
-
-EXECUTABLE_NAME="spearmint"
-DEDICATED_NAME="spearmint-server"
-
-RENDERER_OPENGL1_NAME="${RENDERER_OPENGL}1.dylib"
-RENDERER_OPENGL2_NAME="${RENDERER_OPENGL}2.dylib"
+CGAME="cgame"
+GAME="game"
+UI="ui"
 
 ICNSDIR="misc"
 ICNS="spearmint.icns"
@@ -174,22 +193,23 @@ PKGINFO="APPL????"
 
 OBJROOT="build"
 #BUILT_PRODUCTS_DIR="${OBJROOT}/${TARGET_NAME}-darwin-${CURRENT_ARCH}"
-PRODUCT_NAME="Spearmint"
 WRAPPER_EXTENSION="app"
 WRAPPER_NAME="${PRODUCT_NAME}.${WRAPPER_EXTENSION}"
 CONTENTS_FOLDER_PATH="${WRAPPER_NAME}/Contents"
 UNLOCALIZED_RESOURCES_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/Resources"
 EXECUTABLE_FOLDER_PATH="${CONTENTS_FOLDER_PATH}/MacOS"
-PROTOCOL_HANDLER="spearmint"
 
 # loop through the architectures to build string lists for each universal binary
 for ARCH in $SEARCH_ARCHS; do
 	CURRENT_ARCH=${ARCH}
 	BUILT_PRODUCTS_DIR="${OBJROOT}/${TARGET_NAME}-darwin-${CURRENT_ARCH}"
-	IOQ3_CLIENT="${EXECUTABLE_NAME}_${CURRENT_ARCH}"
-	IOQ3_SERVER="${DEDICATED_NAME}_${CURRENT_ARCH}"
-	IOQ3_RENDERER_GL1="${RENDERER_OPENGL}1_${CURRENT_ARCH}.dylib"
-	IOQ3_RENDERER_GL2="${RENDERER_OPENGL}2_${CURRENT_ARCH}.dylib"
+	ARCH_CLIENTBIN="${CLIENTBIN}_${CURRENT_ARCH}"
+	ARCH_SERVERBIN="${SERVERBIN}_${CURRENT_ARCH}"
+	ARCH_OPENGL1="${RENDERER_PREFIX}opengl1_${CURRENT_ARCH}.dylib"
+	ARCH_OPENGL2="${RENDERER_PREFIX}opengl2_${CURRENT_ARCH}.dylib"
+	ARCH_CGAME="${CGAME}${CURRENT_ARCH}.dylib"
+	ARCH_GAME="${GAME}${CURRENT_ARCH}.dylib"
+	ARCH_UI="${UI}${CURRENT_ARCH}.dylib"
 
 	if [ ! -d ${BUILT_PRODUCTS_DIR} ]; then
 		CURRENT_ARCH=""
@@ -198,22 +218,53 @@ for ARCH in $SEARCH_ARCHS; do
 	fi
 
 	# executables
-	if [ -e ${BUILT_PRODUCTS_DIR}/${IOQ3_CLIENT} ]; then
-		IOQ3_CLIENT_ARCHS="${BUILT_PRODUCTS_DIR}/${IOQ3_CLIENT} ${IOQ3_CLIENT_ARCHS}"
+	if [ -e ${BUILT_PRODUCTS_DIR}/${ARCH_CLIENTBIN} ]; then
+		CLIENTBIN_FILES="${BUILT_PRODUCTS_DIR}/${ARCH_CLIENTBIN} ${CLIENTBIN_FILES}"
 		VALID_ARCHS="${ARCH} ${VALID_ARCHS}"
 	else
 		continue
 	fi
-	if [ -e ${BUILT_PRODUCTS_DIR}/${IOQ3_SERVER} ]; then
-		IOQ3_SERVER_ARCHS="${BUILT_PRODUCTS_DIR}/${IOQ3_SERVER} ${IOQ3_SERVER_ARCHS}"
+	if [ ${BUILD_SERVER} -eq 1 ]; then
+		if [ -e ${BUILT_PRODUCTS_DIR}/${ARCH_SERVERBIN} ]; then
+			SERVERBIN_FILES="${BUILT_PRODUCTS_DIR}/${ARCH_SERVERBIN} ${SERVERBIN_FILES}"
+		fi
 	fi
 
 	# renderers
-	if [ -e ${BUILT_PRODUCTS_DIR}/${IOQ3_RENDERER_GL1} ]; then
-		IOQ3_RENDERER_GL1_ARCHS="${BUILT_PRODUCTS_DIR}/${IOQ3_RENDERER_GL1} ${IOQ3_RENDERER_GL1_ARCHS}"
+	if [ ${BUILD_RENDERER_OPENGL1} -eq 1 ]; then
+		if [ -e ${BUILT_PRODUCTS_DIR}/${ARCH_OPENGL1} ]; then
+			OPENGL1_FILES="${BUILT_PRODUCTS_DIR}/${ARCH_OPENGL1} ${OPENGL1_FILES}"
+		fi
 	fi
-	if [ -e ${BUILT_PRODUCTS_DIR}/${IOQ3_RENDERER_GL2} ]; then
-		IOQ3_RENDERER_GL2_ARCHS="${BUILT_PRODUCTS_DIR}/${IOQ3_RENDERER_GL2} ${IOQ3_RENDERER_GL2_ARCHS}"
+	if [ ${BUILD_RENDERER_OPENGL2} -eq 1 ]; then
+		if [ -e ${BUILT_PRODUCTS_DIR}/${ARCH_OPENGL2} ]; then
+			OPENGL2_FILES="${BUILT_PRODUCTS_DIR}/${ARCH_OPENGL2} ${OPENGL2_FILES}"
+		fi
+	fi
+
+	# baseq3
+	if [ ${BUILD_BASEGAME} -eq 1 ]; then
+		if [ -e ${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_CGAME} ]; then
+			BASE_CGAME_FILES="${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_CGAME} ${BASE_CGAME_FILES}"
+		fi
+		if [ -e ${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_GAME} ]; then
+			BASE_GAME_FILES="${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_GAME} ${BASE_GAME_FILES}"
+		fi
+		if [ -e ${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_UI} ]; then
+			BASE_UI_FILES="${BUILT_PRODUCTS_DIR}/${BASEGAME}/${ARCH_UI} ${BASE_UI_FILES}"
+		fi
+	fi
+	# missionpack
+	if [ ${BUILD_MISSIONPACK} -eq 1 ]; then
+		if [ -e ${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_CGAME} ]; then
+			MP_CGAME_FILES="${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_CGAME} ${MP_CGAME_FILES}"
+		fi
+		if [ -e ${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_GAME} ]; then
+			MP_GAME_FILES="${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_GAME} ${MP_GAME_FILES}"
+		fi
+		if [ -e ${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_UI} ]; then
+			MP_UI_FILES="${BUILT_PRODUCTS_DIR}/${MISSIONPACK}/${ARCH_UI} ${MP_UI_FILES}"
+		fi
 	fi
 
 	#echo "valid arch: ${ARCH}"
@@ -223,12 +274,12 @@ done
 cd `dirname $0`
 
 if [ ! -f Makefile ]; then
-	echo "$0 must be run from the spearmint build directory"
+	echo "$0 must be run from the ${PRODUCT_NAME} build directory"
 	exit 1
 fi
 
-if [ "${IOQ3_CLIENT_ARCHS}" == "" ]; then
-	echo "$0: no spearmint binary architectures were found for target '${TARGET_NAME}'"
+if [ "${CLIENTBIN_FILES}" == "" ]; then
+	echo "$0: no ${PRODUCT_NAME} binary architectures were found for target '${TARGET_NAME}'"
 	exit 1
 fi
 
@@ -260,6 +311,16 @@ echo ""
 # make the application bundle directories
 if [ ! -d "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}" ]; then
 	mkdir -p "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}" || exit 1;
+fi
+if [ ${BUILD_BASEGAME} -eq 1 ]; then
+	if [ ! -d "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/${BASEGAME}" ]; then
+		mkdir -p "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/${BASEGAME}" || exit 1;
+	fi
+fi
+if [ ${BUILD_MISSIONPACK} -eq 1 ]; then
+	if [ ! -d "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/${MISSIONPACK}" ]; then
+		mkdir -p "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/${MISSIONPACK}" || exit 1;
+	fi
 fi
 if [ ! -d "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}" ]; then
 	mkdir -p "${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}" || exit 1;
@@ -329,11 +390,11 @@ PLIST="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
         </dict>
     </array>
     <key>CFBundleExecutable</key>
-    <string>${EXECUTABLE_NAME}</string>
+    <string>${CLIENTBIN}</string>
     <key>CFBundleIconFile</key>
     <string>spearmint</string>
     <key>CFBundleIdentifier</key>
-    <string>moe.clover.${PRODUCT_NAME}</string>
+    <string>${BUNDLE_IDENTIFIER}</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -341,11 +402,11 @@ PLIST="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>${IOQ3_VERSION}</string>
+    <string>${VERSION}</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleVersion</key>
-    <string>${IOQ3_VERSION}</string>
+    <string>${VERSION}</string>
     <key>CGDisableCoalescedUpdates</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
@@ -401,7 +462,7 @@ fi
 
 PLIST="${PLIST}
     <key>NSHumanReadableCopyright</key>
-    <string>${PRODUCT_NAME} Copyright © 1999-2017 id Software LLC, ioquake3 contributors, Spearmint contributors.</string>
+    <string>${BUNDLE_COPYRIGHT}</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
@@ -443,8 +504,10 @@ function action()
 #
 
 # executables
-action "${BUNDLEBINDIR}/${EXECUTABLE_NAME}"				"${IOQ3_CLIENT_ARCHS}"
-action "${BUNDLEBINDIR}/${DEDICATED_NAME}"				"${IOQ3_SERVER_ARCHS}"
+action "${BUNDLEBINDIR}/${CLIENTBIN}"				"${CLIENTBIN_FILES}"
+if [ ${BUILD_SERVER} -eq 1 ]; then
+	action "${BUNDLEBINDIR}/${SERVERBIN}"			"${SERVERBIN_FILES}"
+fi
 
 #
 # enable this to create multi-arch libraries and symlinks. however it doesn't
@@ -453,18 +516,60 @@ action "${BUNDLEBINDIR}/${DEDICATED_NAME}"				"${IOQ3_SERVER_ARCHS}"
 #
 MERGE_LIBS=0
 
-if [ $MERGE_LIBS -eq 0 ]; then
+if [ ${MERGE_LIBS} -eq 0 ]; then
 
 # renderers
-cp ${IOQ3_RENDERER_GL1_ARCHS} "${BUNDLEBINDIR}/"
-cp ${IOQ3_RENDERER_GL2_ARCHS} "${BUNDLEBINDIR}/"
+if [ ${BUILD_RENDERER_OPENGL1} -eq 1 ]; then
+	cp ${OPENGL1_FILES} "${BUNDLEBINDIR}/"
+fi
+if [ ${BUILD_RENDERER_OPENGL2} -eq 1 ]; then
+	cp ${OPENGL2_FILES} "${BUNDLEBINDIR}/"
+fi
+
+# baseq3
+if [ ${BUILD_BASEGAME} -eq 1 ]; then
+	cp ${BASE_CGAME_FILES} "${BUNDLEBINDIR}/${BASEGAME}/"
+	cp ${BASE_GAME_FILES} "${BUNDLEBINDIR}/${BASEGAME}/"
+	cp ${BASE_UI_FILES} "${BUNDLEBINDIR}/${BASEGAME}/"
+fi
+
+# missionpack
+if [ ${BUILD_MISSIONPACK} -eq 1 ]; then
+	cp ${MP_CGAME_FILES} "${BUNDLEBINDIR}/${MISSIONPACK}/"
+	cp ${MP_GAME_FILES} "${BUNDLEBINDIR}/${MISSIONPACK}/"
+	cp ${MP_UI_FILES} "${BUNDLEBINDIR}/${MISSIONPACK}/"
+fi
 
 else
 
 # renderers
-action "${BUNDLEBINDIR}/${RENDERER_OPENGL1_NAME}"		"${IOQ3_RENDERER_GL1_ARCHS}"
-action "${BUNDLEBINDIR}/${RENDERER_OPENGL2_NAME}"		"${IOQ3_RENDERER_GL2_ARCHS}"
-symlinkArch "${RENDERER_OPENGL}1" "${RENDERER_OPENGL}1" "_" "${BUNDLEBINDIR}"
-symlinkArch "${RENDERER_OPENGL}2" "${RENDERER_OPENGL}2" "_" "${BUNDLEBINDIR}"
+if [ ${BUILD_RENDERER_OPENGL1} -eq 1 ]; then
+	action "${BUNDLEBINDIR}/${RENDERER_PREFIX}opengl1.dylib"	"${OPENGL1_FILES}"
+	symlinkArch "${RENDERER_PREFIX}opengl1" "${RENDERER_PREFIX}opengl1" "_" "${BUNDLEBINDIR}"
+fi
+if [ ${BUILD_RENDERER_OPENGL2} -eq 1 ]; then
+	action "${BUNDLEBINDIR}/${RENDERER_PREFIX}opengl2.dylib"	"${OPENGL2_FILES}"
+	symlinkArch "${RENDERER_PREFIX}opengl2" "${RENDERER_PREFIX}opengl2" "_" "${BUNDLEBINDIR}"
+fi
+
+# baseq3
+if [ ${BUILD_BASEGAME} -eq 1 ]; then
+	action "${BUNDLEBINDIR}/${BASEGAME}/${CGAME}.dylib"		"${BASE_CGAME_FILES}"
+	action "${BUNDLEBINDIR}/${BASEGAME}/${GAME}.dylib"		"${BASE_GAME_FILES}"
+	action "${BUNDLEBINDIR}/${BASEGAME}/${UI}.dylib"		"${BASE_UI_FILES}"
+	symlinkArch "${CGAME}"	"${CGAME}"	""	"${BUNDLEBINDIR}/${BASEGAME}"
+	symlinkArch "${GAME}"	"${GAME}"	""	"${BUNDLEBINDIR}/${BASEGAME}"
+	symlinkArch "${UI}"		"${UI}"		""	"${BUNDLEBINDIR}/${BASEGAME}"
+fi
+
+# missionpack
+if [ ${BUILD_MISSIONPACK} -eq 1 ]; then
+	action "${BUNDLEBINDIR}/${MISSIONPACK}/${CGAME}.dylib"	"${MP_CGAME_FILES}"
+	action "${BUNDLEBINDIR}/${MISSIONPACK}/${GAME}.dylib"	"${MP_GAME_FILES}"
+	action "${BUNDLEBINDIR}/${MISSIONPACK}/${UI}.dylib"		"${MP_UI_FILES}"
+	symlinkArch "${CGAME}"	"${CGAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACK}"
+	symlinkArch "${GAME}"	"${GAME}"	""	"${BUNDLEBINDIR}/${MISSIONPACK}"
+	symlinkArch "${UI}"		"${UI}"		""	"${BUNDLEBINDIR}/${MISSIONPACK}"
+fi
 
 fi # MERGE_LIBS

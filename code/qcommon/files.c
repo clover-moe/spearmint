@@ -639,7 +639,7 @@ FS_Remove
 int FS_Remove( const char *osPath ) {
 	FS_CheckFilenameIsMutable( osPath, __func__ );
 
-	return remove( osPath ) != -1;
+	return Sys_Remove( osPath ) != -1;
 }
 
 /*
@@ -651,7 +651,7 @@ FS_HomeRemove
 int FS_HomeRemove( const char *homePath ) {
 	FS_CheckFilenameIsMutable( homePath, __func__ );
 
-	return remove( FS_BuildOSPath( fs_homepath->string,
+	return Sys_Remove( FS_BuildOSPath( fs_homepath->string,
 			fs_gamedir, homePath ) ) != -1;
 }
 

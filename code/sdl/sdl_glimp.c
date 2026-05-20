@@ -602,8 +602,12 @@ static int GLimp_SetMode(int mode, qboolean fullscreen, qboolean noborder, qbool
 		int profileMask;
 		qboolean preferOpenGLES;
 
+#if SDL_VERSION_ATLEAST( 2, 0, 2 )
 		SDL_GL_ResetAttributes();
 		SDL_GL_GetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, &profileMask );
+#else
+		profileMask = 0;
+#endif
 
 		preferOpenGLES = ( r_preferOpenGLES->integer == 1 ||
 		                 ( r_preferOpenGLES->integer == -1 && profileMask == SDL_GL_CONTEXT_PROFILE_ES ) );

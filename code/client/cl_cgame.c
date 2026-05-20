@@ -53,6 +53,7 @@ static qboolean cl_enteredStatusBar;
 static qboolean cl_enteredLowerLeft;
 static qboolean cl_ignoreLowerLeft;
 static qboolean cl_drewLagometer;
+static qboolean cl_drewWorld;
 #endif
 
 void CL_GameCommand( void );
@@ -145,13 +146,16 @@ void CL_AdjustFromCGame( float *x, float *y, float *w, float *h ) {
 
 	int placement;
 
-	if ( cl_viewmode->integer <= 3 ) {
+	if ( clc.state == CA_ACTIVE && !cl_drewWorld && ( cl_viewmode->integer == 2 || cl_viewmode->integer == 3 ) ) {
+		// cg_viewsize border
+		placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
+	} else if ( cl_viewmode->integer == 1 || ( cl_viewmode->integer <= 3 ) ) {
 		placement = SCR_VERT_CENTER | SCR_HOR_CENTER;
 	} else {
 		placement = SCR_VERT_STRETCH | SCR_HOR_STRETCH;
 	}
 
-	if ( clc.state == CA_ACTIVE && cl_viewmode->integer == 3 ) {
+	if ( clc.state == CA_ACTIVE && cl_viewmode->integer == 3 && cl_drewWorld ) {
 		qboolean upperRight = qfalse;
 		const char *gamedir;
 
@@ -1655,6 +1659,24 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 			Com_Memcpy2( &fd, sizeof( refdef_t ), VMA(1), args[2] );
 
 			if ( cl_viewmode->integer >= 2 && fd.x == 0 && fd.y == 0 && fd.width == 640 && fd.height == 480 ) {
+				// make the world scene fill the window
+				fd.width = cls.glconfig.vidWidth;
+				fd.height = cls.glconfig.vidHeight;
+			} else {
+				x = fd.x;
+				y = fd.y;
+				width = fd.width;
+				height = fd.height;
+
+				CL_AdjustFromCGame( &x, &y, &width, &height );
+
+				fd.x = (int)x;
+				fd.y = (int)y;
+				fd.width = (int)(width + 0.5f);
+				fd.height = (int)(height + 0.5f);
+			}
+
+			if ( !( fd.rdflags & RDF_NOWORLDMODEL ) ) {
 				float expected_fov_y, water_fov_y;
 
 				// find underwater view fov_y offset
@@ -1663,10 +1685,6 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 				expected_fov_y = expected_fov_y * 360 / M_PI;
 
 				water_fov_y = expected_fov_y - fd.fov_y;
-
-				// make the world scene fill the window
-				fd.width = cls.glconfig.vidWidth;
-				fd.height = cls.glconfig.vidHeight;
 
 				if ( cl_viewmode->integer == 5 || ( clc.dmflags & DF_FIXED_FOV ) ) {
 					// stretch fov
@@ -1736,18 +1754,8 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 					// restore underwater effect
 					fd.weapon_fov_y -= water_fov_y;
 				}
-			} else {
-				x = fd.x;
-				y = fd.y;
-				width = fd.width;
-				height = fd.height;
 
-				CL_AdjustFromCGame( &x, &y, &width, &height );
-
-				fd.x = (int)x;
-				fd.y = (int)y;
-				fd.width = (int)(width + 0.5f);
-				fd.height = (int)(height + 0.5f);
+				cl_drewWorld = qtrue;
 			}
 
 			re.RenderScene( &fd, args[2] );
@@ -1825,6 +1833,23 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 				}
 			}
 
+			// the xy coords for border for cg_viewsize < 100 will be stretched
+			// in CL_AdjustFromCGame(), adjust the texcoords for expanded HUD
+			// modes to remain aspect correct
+			// NOTE: this only works with tiling texures
+			if ( clc.state == CA_ACTIVE && !cl_drewWorld && ( cl_viewmode->integer == 2 || cl_viewmode->integer == 3 ) ) {
+				float scale;
+
+				scale = ( s1 - s0 ) / ( width * cls.screenXScale );
+
+				s0 = ( ( x * cls.screenXScaleStretch ) - cls.screenXBias ) * scale;
+				s1 = ( ( ( x + width ) * cls.screenXScaleStretch ) - cls.screenXBias ) * scale;
+
+				scale = ( t1 - t0 ) / ( height * cls.screenYScale );
+
+				t0 = ( ( y * cls.screenYScaleStretch ) - cls.screenYBias ) * scale;
+				t1 = ( ( ( y + height ) * cls.screenYScaleStretch ) - cls.screenYBias ) * scale;
+			}
 
 			CL_AdjustFromCGame( &x, &y, &width, &height );
 
@@ -2355,6 +2380,7 @@ void CL_CGameRendering( stereoFrame_t stereo ) {
 	cl_enteredLowerLeft = qfalse;
 	cl_ignoreLowerLeft = qfalse;
 	cl_drewLagometer = qfalse;
+	cl_drewWorld = qfalse;
 #endif
 
 	VM_Call( cgvm, CG_REFRESH, cl.serverTime, stereo, clc.demoplaying, clc.state, cls.realtime );

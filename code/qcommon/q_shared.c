@@ -849,6 +849,18 @@ void Q_strncpyz( char *dest, const char *src, int destsize ) {
 	if ( destsize < 1 ) {
 		Com_Error(ERR_FATAL,"Q_strncpyz: destsize < 1" ); 
 	}
+#if !( defined(Q3_VM) && defined(QVM_STRNCPY_OVERLAP) )
+	// Overlapping src and dest for strncpy() has undefined behavior in
+	// the C standard library.
+	if ( dest < src + destsize && src < dest + destsize ) {
+		const char *srcend = (const char *)memchr( src, '\0', destsize );
+		int srclen = srcend ? (int)( srcend - src ) : destsize;
+
+		if ( dest < src + srclen ) {
+			Com_Error(ERR_FATAL,"Q_strncpyz: dest and src ('%.*s') overlap", destsize, src );
+		}
+	}
+#endif
 
 	strncpy( dest, src, destsize-1 );
   dest[destsize-1] = 0;

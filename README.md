@@ -35,6 +35,8 @@ Submitted contributions must be given with permission to use as GPLv**2** (two) 
 
 ## Credits
 
+Spearmint is maintained by Clover.moe at https://github.com/clover-moe/spearmint.
+
 * Zack Middleton (main developer)
 * Tobias Kuehnhammer (feedback / bug reports / Bot AI fixes)
 * And other contributors
@@ -57,11 +59,15 @@ Spearmint contains code from;
 
 ## Contributing
 
-High quality code contributions are more helpful than rushed contributions.
+High quality code contributions are more helpful than rushed contributions. LLM ("AI") contributions are not desired.
 
 Reviewing pull requests is sometimes more work than a reviewer doing the work in the first place so pull requests may be disregarded.
 
-The focus for Spearmint is to develop a stable base suitable for further
-development and provide players with the same Quake 3 game play experience
-they've had for years.
+
+## Derivatives
+
+If you create a derivative project that you plan for others to use, it would be preferred to give it a different title such as "Spearmint (_your name_ ver.)" to make it easier to discuss and reduce confusion with the project maintained by Clover.moe.
+
+If you're going to pick a different title, it would be preferred that you pick a character from one of your favorite video games to build on rather than the word Spearmint. (Spearmint is partially named after the character Gum in Jet Set Radio.)
+
 

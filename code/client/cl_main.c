@@ -3575,51 +3575,35 @@ static void CL_PrintViewMode( void ) {
 	}
 }
 
-extern void CL_GameCommand( void );
-
 /*
 =================
-CL_SizeDown_f
+CL_FlexUp_f
 =================
 */
-static void CL_SizeUp_f (void) {
-	if ( cl_flexibleDisplay->integer ) {
-		if ( cl_viewsize->integer >= 100 ) {
-			if ( cl_viewmode->integer >= 6 ) {
-				return;
-			}
+static void CL_FlexUp_f (void) {
+	if ( cl_flexibleDisplay->integer && cl_viewsize->integer >= 100 ) {
+		if ( cl_viewmode->integer >= 6 ) {
+			return;
+		}
 
-			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer+1)));
-			CL_PrintViewMode();
-		} else {
-			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer+10)));
-		}
+		Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer+1)));
+		CL_PrintViewMode();
 	} else {
-		// run command in cgame
-		if ( com_cl_running && com_cl_running->integer ) {
-			CL_GameCommand();
-		}
+		Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer+10)));
 	}
 }
 
 /*
 =================
-CL_SizeDown_f
+CL_FlexDown_f
 =================
 */
-static void CL_SizeDown_f (void) {
-	if ( cl_flexibleDisplay->integer ) {
-		if ( cl_viewmode->integer > 1 ) {
-			Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer-1)));
-			CL_PrintViewMode();
-		} else {
-			Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer-10)));
-		}
+static void CL_FlexDown_f (void) {
+	if ( cl_flexibleDisplay->integer && cl_viewmode->integer > 1 ) {
+		Cvar_Set(cl_viewmode->name, va("%i",(int)(cl_viewmode->integer-1)));
+		CL_PrintViewMode();
 	} else {
-		// run command in cgame
-		if ( com_cl_running && com_cl_running->integer ) {
-			CL_GameCommand();
-		}
+		Cvar_Set("cg_viewsize", va("%i",(int)(cl_viewsize->integer-10)));
 	}
 }
 #endif
@@ -3801,8 +3785,8 @@ void CL_Init( void ) {
 	Cmd_AddCommand ("video", CL_Video_f );
 	Cmd_AddCommand ("stopvideo", CL_StopVideo_f );
 #ifdef USE_FLEXIBLE_DISPLAY
-	Cmd_AddCommand ("sizeup", CL_SizeUp_f );
-	Cmd_AddCommand ("sizedown", CL_SizeDown_f );
+	Cmd_AddCommand ("flexup", CL_FlexUp_f );
+	Cmd_AddCommand ("flexdown", CL_FlexDown_f );
 #endif
 
 	CL_InitRef();

@@ -71,6 +71,11 @@ static char homePath[ MAX_OSPATH ] = { 0 };
 static UINT timerResolution = 0;
 #endif
 
+#if defined(DEDICATED) && defined(UNICODE)
+static char **sys_argv;
+static int sys_argc = 0;
+#endif
+
 /*
 ================
 Sys_SetFPUCW
@@ -111,19 +116,28 @@ Sys_DefaultHomePath
 */
 char *Sys_DefaultHomePath( void )
 {
-	TCHAR szPath[MAX_PATH];
-	PFNSHGETFOLDERPATHA qSHGetFolderPath;
-	HMODULE shfolder = LoadLibrary("shfolder.dll");
-
-	if(shfolder == NULL)
-	{
-		Com_Printf("Unable to load SHFolder.dll\n");
-		return NULL;
-	}
-
 	if(!*homePath && com_homepath)
 	{
+		TCHAR szPath[MAX_PATH];
+#ifdef UNICODE
+		char path[MAX_PATH];
+		PFNSHGETFOLDERPATHW qSHGetFolderPath;
+#else
+		PFNSHGETFOLDERPATHA qSHGetFolderPath;
+#endif
+		HMODULE shfolder = LoadLibrary( TEXT( "shfolder.dll" ) );
+
+		if(shfolder == NULL)
+		{
+			Com_Printf("Unable to load SHFolder.dll\n");
+			return NULL;
+		}
+
+#ifdef UNICODE
+		qSHGetFolderPath = (PFNSHGETFOLDERPATHW) GetProcAddress(shfolder, "SHGetFolderPathW");
+#else
 		qSHGetFolderPath = (PFNSHGETFOLDERPATHA) GetProcAddress(shfolder, "SHGetFolderPathA");
+#endif
 		if(qSHGetFolderPath == NULL)
 		{
 			Com_Printf("Unable to find SHGetFolderPath in SHFolder.dll\n");
@@ -138,11 +152,19 @@ char *Sys_DefaultHomePath( void )
 			FreeLibrary(shfolder);
 			return NULL;
 		}
-		
+
+#ifdef UNICODE
+		if ( Sys_WideToUTF8( path, szPath, sizeof( path ) ) )
+		{
+			Com_sprintf(homePath, sizeof(homePath), "%s%c%s", path, PATH_SEP, com_homepath->string);
+		}
+#else
 		Com_sprintf(homePath, sizeof(homePath), "%s%c%s", szPath, PATH_SEP, com_homepath->string);
+#endif
+
+		FreeLibrary(shfolder);
 	}
 
-	FreeLibrary(shfolder);
 	return homePath;
 }
 
@@ -196,11 +218,21 @@ Sys_GetCurrentUser
 */
 char *Sys_GetCurrentUser( void )
 {
+#ifdef UNICODE
+	static char s_userName[1024];
+	WCHAR wusername[1024];
+	unsigned long size = ARRAY_LEN( wusername );
+
+	if( !GetUserName( wusername, &size )
+		|| !Sys_WideToUTF8( s_userName, wusername, sizeof( s_userName ) ) )
+		strcpy( s_userName, "player" );
+#else
 	static char s_userName[1024];
 	unsigned long size = sizeof( s_userName );
 
 	if( !GetUserName( s_userName, &size ) )
 		strcpy( s_userName, "player" );
+#endif
 
 	if( !s_userName[0] )
 	{
@@ -275,6 +307,66 @@ const char *Sys_Dirname( const char *path )
 	return dir;
 }
 
+#ifdef UNICODE
+/*
+==============
+Sys_UTF8ToWide
+
+if this returns qfalse, it should only be used for display purposes
+and not file access
+==============
+*/
+qboolean Sys_UTF8ToWide( unsigned short *wstr, const char *str, int wstrCount )
+{
+	if ( !MultiByteToWideChar( CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, wstr, wstrCount ) ) {
+		int i;
+
+		for ( i = 0; str[i] != '\0' && i < wstrCount - 1; i++ ) {
+			if ( str[i] >= '\x00' && str[i] <= '\x7F' ) {
+				wstr[i] = str[i];
+			} else {
+				wstr[i] = '?';
+			}
+		}
+		wstr[i] = '\0';
+
+		Com_Printf( "WARNING: Converting UTF-8 ('%s') to UTF-16 failed: error 0x%08x.\n", str, (int) GetLastError() );
+		return qfalse;
+	}
+
+	return qtrue;
+}
+
+/*
+==============
+Sys_WideToUTF8
+
+if this returns qfalse, it should only be used for display purposes
+and not file access
+==============
+*/
+qboolean Sys_WideToUTF8( char *str, const unsigned short *wstr, int strSize )
+{
+	if ( !WideCharToMultiByte( CP_UTF8, 0, wstr, -1, str, strSize, NULL, NULL ) ) {
+		int i;
+
+		for ( i = 0; wstr[i] != 0 && i < strSize - 1; i++ ) {
+			if ( wstr[i] > 0x00 && wstr[i] <= 0x7F ) {
+				str[i] = wstr[i];
+			} else {
+				str[i] = '?';
+			}
+		}
+		str[i] = '\0';
+
+		Com_Printf( "WARNING: Converting UTF-16 ('%s') to UTF-8 failed: error 0x%08x.\n", str, (int) GetLastError() );
+		return qfalse;
+	}
+
+	return qtrue;
+}
+#endif
+
 /*
 ==============
 Sys_FOpen
@@ -282,6 +374,10 @@ Sys_FOpen
 */
 FILE *Sys_FOpen( const char *ospath, const char *mode ) {
 	size_t length;
+#ifdef UNICODE
+	WCHAR wospath[MAX_OSPATH];
+	WCHAR wmode[16];
+#endif
 
 	// Windows API ignores all trailing spaces and periods which can get around Quake 3 file system restrictions.
 	length = strlen( ospath );
@@ -289,7 +385,37 @@ FILE *Sys_FOpen( const char *ospath, const char *mode ) {
 		return NULL;
 	}
 
+#ifdef UNICODE
+	if ( !Sys_UTF8ToWide( wospath, ospath, ARRAY_LEN( wospath ) ) ) {
+		return NULL;
+	}
+
+	if ( !Sys_UTF8ToWide( wmode, mode, ARRAY_LEN( wmode ) ) ) {
+		return NULL;
+	}
+
+	return _wfopen( wospath, wmode );
+#else
 	return fopen( ospath, mode );
+#endif
+}
+
+/*
+==============
+Sys_Remove
+==============
+*/
+int Sys_Remove( const char *ospath )
+{
+#ifdef UNICODE
+	WCHAR wospath[MAX_PATH];
+
+	if ( Sys_UTF8ToWide( wospath, ospath, ARRAY_LEN( wospath ) ) ) {
+		return _wremove( wospath );
+	}
+#else
+	return remove( ospath );
+#endif
 }
 
 /*
@@ -299,7 +425,17 @@ Sys_Mkdir
 */
 qboolean Sys_Mkdir( const char *path )
 {
+#ifdef UNICODE
+	WCHAR wpath[MAX_OSPATH];
+
+	if ( !Sys_UTF8ToWide( wpath, path, ARRAY_LEN( wpath ) ) ) {
+		return qfalse;
+	}
+
+	if( !CreateDirectoryW( wpath, NULL ) )
+#else
 	if( !CreateDirectory( path, NULL ) )
+#endif
 	{
 		if( GetLastError( ) != ERROR_ALREADY_EXISTS )
 			return qfalse;
@@ -360,9 +496,22 @@ Sys_Cwd
 */
 char *Sys_Cwd( void ) {
 	static char cwd[MAX_OSPATH];
+#ifdef UNICODE
+	WCHAR wcwd[MAX_OSPATH];
 
+	cwd[0] = '\0';
+
+	if ( _wgetcwd( wcwd, ARRAY_LEN( wcwd ) - 1 ) ) {
+		wcwd[MAX_OSPATH-1] = 0;
+
+		if ( !Sys_WideToUTF8( cwd, wcwd, sizeof( cwd ) ) ) {
+			cwd[0] = '\0';
+		}
+	}
+#else
 	_getcwd( cwd, sizeof( cwd ) - 1 );
 	cwd[MAX_OSPATH-1] = 0;
+#endif
 
 	return cwd;
 }
@@ -385,9 +534,16 @@ Sys_ListFilteredFiles
 void Sys_ListFilteredFiles( const char *basedir, char *subdirs, char *filter, char **list, int *numfiles )
 {
 	char		search[MAX_OSPATH], newsubdirs[MAX_OSPATH];
+#ifdef UNICODE
+	WCHAR		wsearch[MAX_OSPATH];
+#endif
 	char		filename[MAX_OSPATH];
 	intptr_t	findhandle;
+#ifdef UNICODE
+	struct _wfinddata_t findinfo;
+#else
 	struct _finddata_t findinfo;
+#endif
 
 	if ( *numfiles >= MAX_FOUND_FILES - 1 ) {
 		return;
@@ -404,19 +560,37 @@ void Sys_ListFilteredFiles( const char *basedir, char *subdirs, char *filter, ch
 		Com_sprintf( search, sizeof(search), "%s\\*", basedir );
 	}
 
+#ifdef UNICODE
+	if ( !Sys_UTF8ToWide( wsearch, search, ARRAY_LEN( wsearch ) ) ) {
+		return;
+	}
+
+	findhandle = _wfindfirst (wsearch, &findinfo);
+#else
 	findhandle = _findfirst (search, &findinfo);
+#endif
 	if (findhandle == -1) {
 		return;
 	}
 
 	do {
+#ifdef UNICODE
+		char findinfo_name[MAX_PATH];
+
+		if ( !Sys_WideToUTF8( findinfo_name, findinfo.name, sizeof( findinfo_name ) ) ) {
+			continue;
+		}
+#else
+		char *findinfo_name = findinfo.name;
+#endif
+
 		if (findinfo.attrib & _A_SUBDIR) {
-			if (Q_stricmp(findinfo.name, ".") && Q_stricmp(findinfo.name, "..")) {
+			if (Q_stricmp(findinfo_name, ".") && Q_stricmp(findinfo_name, "..")) {
 				if (strlen(subdirs)) {
-					Com_sprintf( newsubdirs, sizeof(newsubdirs), "%s\\%s", subdirs, findinfo.name);
+					Com_sprintf( newsubdirs, sizeof(newsubdirs), "%s\\%s", subdirs, findinfo_name);
 				}
 				else {
-					Com_sprintf( newsubdirs, sizeof(newsubdirs), "%s", findinfo.name);
+					Com_sprintf( newsubdirs, sizeof(newsubdirs), "%s", findinfo_name);
 				}
 				Sys_ListFilteredFiles( basedir, newsubdirs, filter, list, numfiles );
 			}
@@ -424,12 +598,17 @@ void Sys_ListFilteredFiles( const char *basedir, char *subdirs, char *filter, ch
 		if ( *numfiles >= MAX_FOUND_FILES - 1 ) {
 			break;
 		}
-		Com_sprintf( filename, sizeof(filename), "%s\\%s", subdirs, findinfo.name );
+		Com_sprintf( filename, sizeof(filename), "%s\\%s", subdirs, findinfo_name );
 		if (!Com_FilterPath( filter, filename, qfalse ))
 			continue;
 		list[ *numfiles ] = CopyString( filename );
 		(*numfiles)++;
-	} while ( _findnext (findhandle, &findinfo) != -1 );
+	}
+#ifdef UNICODE
+	while ( _wfindnext (findhandle, &findinfo) != -1 );
+#else
+	while ( _findnext (findhandle, &findinfo) != -1 );
+#endif
 
 	_findclose (findhandle);
 }
@@ -469,10 +648,17 @@ Sys_ListFiles
 char **Sys_ListFiles( const char *directory, const char *extension, char *filter, int *numfiles, qboolean wantsubs )
 {
 	char		search[MAX_OSPATH];
+#ifdef UNICODE
+	WCHAR		wsearch[MAX_OSPATH];
+#endif
 	int			nfiles;
 	char		**listCopy;
 	char		*list[MAX_FOUND_FILES];
+#ifdef UNICODE
+	struct _wfinddata_t findinfo;
+#else
 	struct _finddata_t findinfo;
+#endif
 	intptr_t		findhandle;
 	int			flag;
 	int			i;
@@ -522,18 +708,36 @@ char **Sys_ListFiles( const char *directory, const char *extension, char *filter
 	// search
 	nfiles = 0;
 
+#ifdef UNICODE
+	if ( !Sys_UTF8ToWide( wsearch, search, ARRAY_LEN( wsearch ) ) ) {
+		return NULL;
+	}
+
+	findhandle = _wfindfirst (wsearch, &findinfo);
+#else
 	findhandle = _findfirst (search, &findinfo);
+#endif
 	if (findhandle == -1) {
 		*numfiles = 0;
 		return NULL;
 	}
 
 	do {
+#ifdef UNICODE
+		char findinfo_name[MAX_PATH];
+
+		if ( !Sys_WideToUTF8( findinfo_name, findinfo.name, sizeof( findinfo_name ) ) ) {
+			continue;
+		}
+#else
+		char *findinfo_name = findinfo.name;
+#endif
+
 		if ( (!wantsubs && flag ^ ( findinfo.attrib & _A_SUBDIR )) || (wantsubs && findinfo.attrib & _A_SUBDIR) ) {
 			if (*extension) {
-				if ( strlen( findinfo.name ) < extLen ||
+				if ( strlen( findinfo_name ) < extLen ||
 					Q_stricmp(
-						findinfo.name + strlen( findinfo.name ) - extLen,
+						findinfo_name + strlen( findinfo_name ) - extLen,
 						extension ) ) {
 					continue; // didn't match
 				}
@@ -541,10 +745,15 @@ char **Sys_ListFiles( const char *directory, const char *extension, char *filter
 			if ( nfiles == MAX_FOUND_FILES - 1 ) {
 				break;
 			}
-			list[ nfiles ] = CopyString( findinfo.name );
+			list[ nfiles ] = CopyString( findinfo_name );
 			nfiles++;
 		}
-	} while ( _findnext (findhandle, &findinfo) != -1 );
+	}
+#ifdef UNICODE
+	while ( _wfindnext (findhandle, &findinfo) != -1 );
+#else
+	while ( _findnext (findhandle, &findinfo) != -1 );
+#endif
 
 	list[ nfiles ] = 0;
 
@@ -640,14 +849,32 @@ void Sys_ErrorDialog( const char *error )
 			"Error" ) == DR_YES )
 	{
 		HGLOBAL memoryHandle;
-		char *clipMemory;
+		TCHAR *clipMemory;
+		int clipCount;
+#ifdef UNICODE
+		char *utf8buf;
+#endif
 
-		memoryHandle = GlobalAlloc( GMEM_MOVEABLE|GMEM_DDESHARE, CON_LogSize( ) + 1 );
-		clipMemory = (char *)GlobalLock( memoryHandle );
+		clipCount = ( CON_LogSize( ) + 1 );
+
+#ifdef UNICODE
+		utf8buf = (char*)malloc( clipCount );
+		if ( !utf8buf ) {
+			return;
+		}
+#endif
+
+		memoryHandle = GlobalAlloc( GMEM_MOVEABLE|GMEM_DDESHARE|GMEM_ZEROINIT,
+									clipCount * sizeof( TCHAR ) );
+		clipMemory = (TCHAR *)GlobalLock( memoryHandle );
 
 		if( clipMemory )
 		{
+#ifdef UNICODE
+			char *p = utf8buf;
+#else
 			char *p = clipMemory;
+#endif
 			char buffer[ 1024 ];
 			unsigned int size;
 
@@ -659,12 +886,24 @@ void Sys_ErrorDialog( const char *error )
 
 			*p = '\0';
 
+#ifdef UNICODE
+			Sys_UTF8ToWide( clipMemory, utf8buf, clipCount );
+#endif
+
 			if( OpenClipboard( NULL ) && EmptyClipboard( ) )
+#ifdef UNICODE
+				SetClipboardData( CF_UNICODETEXT, memoryHandle );
+#else
 				SetClipboardData( CF_TEXT, memoryHandle );
+#endif
 
 			GlobalUnlock( clipMemory );
 			CloseClipboard( );
 		}
+
+#ifdef UNICODE
+		free( utf8buf );
+#endif
 	}
 }
 
@@ -678,6 +917,10 @@ Display a win32 dialog box
 dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *title )
 {
 	UINT uType;
+#ifdef UNICODE
+	WCHAR wmessage[4096];
+	WCHAR wtitle[1024];
+#endif
 
 	switch( type )
 	{
@@ -689,7 +932,14 @@ dialogResult_t Sys_Dialog( dialogType_t type, const char *message, const char *t
 		case DT_OK_CANCEL: uType = MB_ICONWARNING|MB_OKCANCEL; break;
 	}
 
-	switch( MessageBox( NULL, message, title, uType ) )
+#ifdef UNICODE
+	Sys_UTF8ToWide( wmessage, message, ARRAY_LEN( wmessage ) );
+	Sys_UTF8ToWide( wtitle, title, ARRAY_LEN( wtitle ) );
+
+	switch( MessageBoxW( NULL, wmessage, wtitle, uType ) )
+#else
+	switch( MessageBoxA( NULL, message, title, uType ) )
+#endif
 	{
 		default:
 		case IDOK:      return DR_OK;
@@ -723,6 +973,74 @@ void Sys_GLimpInit( void )
 
 /*
 ==============
+Sys_CommandLineInit
+
+Get UTF-16 args in dedicated server,
+client args are handled by SDL2main
+==============
+*/
+void Sys_CommandLineInit( int *argcP, char ***argvP ) {
+#if defined(DEDICATED) && defined(UNICODE)
+	int i, size;
+	WCHAR **wargv;
+
+	sys_argc = 0;
+	wargv = CommandLineToArgvW( GetCommandLineW(), &sys_argc );
+
+	sys_argv = calloc( sys_argc + 1, sizeof( char * ) );
+	if ( !sys_argv ) {
+		// Out of memory
+		sys_argc = 0;
+		return;
+	}
+
+	for ( i = 0; i < sys_argc; i++ ) {
+		size = WideCharToMultiByte( CP_UTF8, 0, wargv[i], -1, NULL, 0, NULL, NULL );
+
+		sys_argv[i] = malloc( size );
+		if ( !sys_argv[i] ) {
+			// Out of memory
+			return;
+		}
+
+		Sys_WideToUTF8( sys_argv[i], wargv[i], size );
+	}
+
+	sys_argv[sys_argc] = NULL;
+
+	LocalFree( wargv );
+	wargv = NULL;
+
+	*argcP = sys_argc;
+	*argvP = sys_argv;
+#endif
+}
+
+/*
+==============
+Sys_CommandLineExit
+==============
+*/
+static void Sys_CommandLineExit( void ) {
+#if defined(DEDICATED) && defined(UNICODE)
+	int i;
+
+	if ( sys_argv ) {
+		for ( i = 0; i < sys_argc; i++ ) {
+			free( sys_argv[i] );
+			sys_argv[i] = NULL;
+		}
+
+		free( sys_argv );
+		sys_argv = NULL;
+	}
+
+	sys_argc = 0;
+#endif
+}
+
+/*
+==============
 Sys_PlatformInit
 
 Windows specific initialisation
@@ -752,6 +1070,11 @@ void Sys_PlatformInit( void )
 	else
 		timerResolution = 0;
 #endif
+
+	// increase maximum open files
+	if ( _getmaxstdio() < 2048 ) {
+		_setmaxstdio( 2048 );
+	}
 }
 
 /*
@@ -767,6 +1090,8 @@ void Sys_PlatformExit( void )
 	if(timerResolution)
 		timeEndPeriod(timerResolution);
 #endif
+
+	Sys_CommandLineExit();
 }
 
 /*
@@ -819,6 +1144,54 @@ qboolean Sys_PIDIsRunning( int pid )
 
 	return qfalse;
 }
+
+#ifdef DEDICATED
+/*
+==============
+Sys_LoadLibrary
+==============
+*/
+void *Sys_LoadLibrary( const char *f ) {
+#ifdef UNICODE
+	WCHAR wf[MAX_OSPATH];
+
+	if ( !Sys_UTF8ToWide( wf, f, ARRAY_LEN( wf ) ) ) {
+		return NULL;
+	}
+
+	return LoadLibraryW( wf );
+#else
+	return LoadLibrary( f );
+#endif
+}
+
+/*
+==============
+Sys_UnloadLibrary
+==============
+*/
+void Sys_UnloadLibrary( void *h ) {
+	FreeLibrary( (HMODULE)h );
+}
+
+/*
+==============
+Sys_LoadFunction
+==============
+*/
+void *Sys_LoadFunction( void *h, const char *fn ) {
+	return GetProcAddress( (HMODULE)h, fn );
+}
+
+/*
+==============
+Sys_LibraryError
+==============
+*/
+const char *Sys_LibraryError( void ) {
+	return "unknown";
+}
+#endif
 
 /*
 =================

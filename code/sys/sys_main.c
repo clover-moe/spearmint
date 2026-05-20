@@ -240,7 +240,7 @@ void Sys_RemovePIDFile( const char *gamedir )
 	char *pidFile = Sys_PIDFileName( gamedir );
 
 	if( pidFile != NULL )
-		remove( pidFile );
+		Sys_Remove( pidFile );
 }
 
 /*
@@ -260,7 +260,7 @@ static qboolean Sys_WritePIDFile( const char *gamedir )
 		return qfalse;
 
 	// First, check if the pid file is already there
-	if( ( f = fopen( pidFile, "r" ) ) != NULL )
+	if( ( f = Sys_FOpen( pidFile, "r" ) ) != NULL )
 	{
 		char  pidBuffer[ 64 ] = { 0 };
 		int   pid;
@@ -282,7 +282,7 @@ static qboolean Sys_WritePIDFile( const char *gamedir )
 		return 0;
 	}
 
-	if( ( f = fopen( pidFile, "w" ) ) != NULL )
+	if( ( f = Sys_FOpen( pidFile, "w" ) ) != NULL )
 	{
 		fprintf( f, "%d", Sys_PID( ) );
 		fclose( f );
@@ -808,6 +808,8 @@ int main( int argc, char **argv )
 #ifdef PROTOCOL_HANDLER
 	char *protocolCommand = NULL;
 #endif
+
+	Sys_CommandLineInit( &argc, &argv );
 
 	extern void Sys_LaunchAutoupdater(int argc, char **argv);
 	Sys_LaunchAutoupdater(argc, argv);
