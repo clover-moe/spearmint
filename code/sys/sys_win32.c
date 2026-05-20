@@ -410,9 +410,12 @@ int Sys_Remove( const char *ospath )
 #ifdef UNICODE
 	WCHAR wospath[MAX_PATH];
 
-	if ( Sys_UTF8ToWide( wospath, ospath, ARRAY_LEN( wospath ) ) ) {
-		return _wremove( wospath );
+	if ( !Sys_UTF8ToWide( wospath, ospath, ARRAY_LEN( wospath ) ) ) {
+		errno = EINVAL;
+		return -1;
 	}
+
+	return _wremove( wospath );
 #else
 	return remove( ospath );
 #endif
@@ -451,7 +454,17 @@ Sys_Rmdir
 */
 qboolean Sys_Rmdir( const char *path )
 {
+#ifdef UNICODE
+	WCHAR wpath[MAX_OSPATH];
+
+	if ( !Sys_UTF8ToWide( wpath, path, ARRAY_LEN( wpath ) ) ) {
+		return qfalse;
+	}
+
+	if( RemoveDirectoryW( wpath ) != 0 )
+#else
 	if( RemoveDirectory( path ) != 0 )
+#endif
 		return qfalse;
 
 	return qtrue;
