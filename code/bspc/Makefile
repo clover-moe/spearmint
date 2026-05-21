@@ -4,17 +4,32 @@
 # GNU Make required
 #
 
-COMPILE_PLATFORM=$(shell uname|sed -e s/_.*//|tr '[:upper:]' '[:lower:]'|sed -e 's/\//_/g')
+COMPILE_PLATFORM=$(shell uname | sed -e 's/_.*//' | tr '[:upper:]' '[:lower:]' | sed -e 's/\//_/g')
+COMPILE_ARCH=$(shell uname -m | sed -e 's/i.86/x86/' | sed -e 's/^arm.*/arm/')
 
-COMPILE_ARCH=$(shell uname -m | sed -e s/i.86/x86/ | sed -e 's/^arm.*/arm/')
+#arm64 hack!
+ifeq ($(shell uname -m), arm64)
+  COMPILE_ARCH=arm64
+endif
+ifeq ($(shell uname -m), aarch64)
+  COMPILE_ARCH=arm64
+endif
 
 ifeq ($(COMPILE_PLATFORM),sunos)
   # Solaris uname and GNU uname differ
-  COMPILE_ARCH=$(shell uname -p | sed -e s/i.86/x86/)
+  COMPILE_ARCH=$(shell uname -p | sed -e 's/i.86/x86/')
 endif
-ifeq ($(COMPILE_PLATFORM),darwin)
-  # Apple does some things a little differently...
-  COMPILE_ARCH=$(shell uname -p | sed -e s/i.86/x86/)
+
+ifneq ($(findstring mingw,$(COMPILE_PLATFORM)),)
+  # MSYS2 environments differ from uname
+  ifeq ($(MSYSTEM_CHOST),i686-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86
+  endif
+  ifeq ($(MSYSTEM_CHOST),x86_64-w64-mingw32)
+    COMPILE_PLATFORM=mingw32
+    COMPILE_ARCH=x86_64
+  endif
 endif
 
 
@@ -28,8 +43,13 @@ endif
 #############################################################################
 -include Makefile.local
 
+# cygwin environment isn't supported but mingw packages can be used if installed
 ifeq ($(COMPILE_PLATFORM),cygwin)
   PLATFORM=mingw32
+endif
+# MSYS2 msys environment is cygwin without mingw packages
+ifeq ($(COMPILE_PLATFORM),msys)
+  $(error MSYS2 MSYS environment is not supported, use MSYS2 MinGW 32-bit or 64-bit instead)
 endif
 
 ifndef PLATFORM
