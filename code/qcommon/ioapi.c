@@ -87,7 +87,7 @@ voidpf ZCALLBACK fopen_file_func (opaque, filename, mode)
         mode_fopen = "wb";
 
     if ((filename!=NULL) && (mode_fopen != NULL))
-#if 1 // FIXME?: code/qcommon/files.c should use unzOpen2() but it would need to duplicate this whole file to stay outside the unzip API for no particular benefit.
+#ifndef BSPC // FIXME?: code/qcommon/files.c should use unzOpen2() but it would need to duplicate this whole file to stay outside the unzip API for no particular benefit.
     {
         extern FILE *Sys_FOpen( const char *ospath, const char *mode );
         file = Sys_FOpen(filename, mode_fopen);
