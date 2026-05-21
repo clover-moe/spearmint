@@ -39,6 +39,14 @@ jobs:
       with:
         name: Windows-x86
         path: build/*.zip
+    - name: Compile BSPC
+      shell: msys2 {0}
+      run: |
+        make -C code/bspc release -j $NUMBER_OF_PROCESSORS
+    - uses: actions/upload-artifact@v7
+      with:
+        name: BSPC-Windows-x86
+        path: build/bspc*/*.exe
   windows-x86_64:
     name: Windows (x86_64)
     runs-on: windows-latest
