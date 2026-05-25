@@ -1038,10 +1038,10 @@ void GLSL_InitGPUShaders(void)
 
 	// OpenGL ES may not have enough attributes to fit ones used for vertex animation
 	if ( glRefConfig.maxVertexAttribs > ATTR_INDEX_NORMAL2 ) {
-		ri.Printf(PRINT_ALL, "Using GPU vertex animation\n");
+		ri.Printf(PRINT_DEVELOPER, "Using GPU vertex animation\n");
 		glRefConfig.gpuVertexAnimation = qtrue;
 	} else {
-		ri.Printf(PRINT_ALL, "Using CPU vertex animation\n");
+		ri.Printf(PRINT_DEVELOPER, "Using CPU vertex animation\n");
 		glRefConfig.gpuVertexAnimation = qfalse;
 	}
 
