@@ -1,0 +1,2698 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.12)
+
+PROJECT(spearmint)
+
+#
+# Spearmint Makefile
+#
+# GNU Make required
+#
+string(TOLOWER "${CMAKE_HOST_SYSTEM_NAME}" COMPILE_PLATFORM)
+set(COMPILE_ARCH "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+
+#arm64 hack!
+if(${COMPILE_PLATFORM} MATCHES arm64)
+   SET(COMPILE_ARCH arm64)
+endif()
+if(${COMPILE_PLATFORM} MATCHES aarch64)
+   set(COMPILE_ARCH arm64)
+endif()
+
+# ifeq ($(COMPILE_PLATFORM),sunos)
+#   # Solaris uname and GNU uname differ
+#   COMPILE_ARCH=$(shell uname -p | sed -e 's/i.86/x86/')
+# endif
+
+OPTION(BUILD_CLIENT "" ON)
+OPTION(BUILD_SERVER "" ON)
+OPTION(BUILD_RENDERER_OPENGL2 "" ON)
+OPTION(BUILD_FINAL "" OFF)
+OPTION(BUILD_AUTOUPDATER "" OFF)  # DON'T build unless you mean to!
+
+#############################################################################
+#
+# If you require a different configuration from the defaults below, create a
+# new file named "Makefile.local" in the same directory as this file and define
+# your parameters there. This allows you to change configuration without
+# causing problems with keeping up to date with the repository.
+#
+#############################################################################
+include(local.cmake OPTIONAL)
+
+if(${COMPILE_PLATFORM} MATCHES cygwin)
+  set(PLATFORM mingw32)
+endif()
+
+if(NOT PLATFORM)
+  set(PLATFORM ${COMPILE_PLATFORM})
+endif()
+set($ENV{PLATFORM} ${PLATFORM})
+
+if(${PLATFORM} MATCHES mingw32)
+   SET(MINGW ON)
+endif()
+if(${PLATFORM} MATCHES mingw64)
+   SET(MINGW ON)
+endif()
+
+if(${COMPILE_ARCH} MATCHES i86pc)
+   SET(COMPILE_ARCH x86)
+endif()
+
+if(${COMPILE_ARCH} MATCHES amd64)
+   SET(COMPILE_ARCH x86_64)
+endif()
+if(${COMPILE_ARCH} MATCHES x64)
+   SET(COMPILE_ARCH x86_64)
+endif()
+
+if(${COMPILE_ARCH} MATCHES powerpc)
+   SET(COMPILE_ARCH ppc)
+endif()
+if(${COMPILE_ARCH} MATCHES powerpc64)
+  SET(COMPILE_ARCH ppc64)
+endif()
+
+if(${COMPILE_ARCH} MATCHES axp)
+  SET(COMPILE_ARCH alpha)
+endif()
+
+message("compile arch: ${COMPILE_ARCH}")
+
+if(NOT DEFINED ${ARCH})
+  set(ARCH ${COMPILE_ARCH})
+endif()
+set(ENV{ARCH} ${ARCH})
+
+if(NOT "${PLATFORM}" MATCHES "${COMPILE_PLATFORM}")
+   set(CROSS_COMPILING ON)
+else()
+   set(CROSS_COMPILING OFF)
+endif()
+
+if(NOT "${ARCH}" MATCHES "${COMPILE_ARCH}")
+    set(CROSS_COMPILING ON)
+endif()
+
+set(ENV{CROSS_COMPILING} "${CROSS_COMPILING}")
+
+if(NOT VERSION)
+    set(VERSION "1.1dev")
+endif()
+
+if(NOT CLIENTBIN)
+    set(CLIENTBIN "spearmint")
+endif()
+
+if(NOT SERVERBIN)
+    set(SERVERBIN "spearmint-server")
+endif()
+
+if(NOT APPBUNDLE)
+# must manually change PRODUCT_NAME in make-macosx-app.sh
+    set(APPBUNDLE "Spearmint.app")
+endif()
+
+if(NOT RENDERER_PREFIX)
+    set(RENDERER_PREFIX "spearmint-renderer-")
+endif()
+
+if(NOT BASEGAME)
+    set(BASEGAME "baseq3")
+endif()
+
+# Add "-DEXAMPLE" to define EXAMPLE in engine and game/cgame.
+if(NOT BUILD_DEFINES)
+    set(BUILD_DEFINES "")
+endif()
+
+if(NOT COPYDIR)
+    set(COPYDIR "/usr/local/games/spearmint")
+endif()
+
+if(NOT COPYBINDIR)
+    set(COPYBINDIR "${COPYDIR}")
+endif()
+
+if(NOT MOUNT_DIR)
+    set(MOUNT_DIR "code")
+endif()
+
+if(NOT BUILD_DIR)
+    set(BUILD_DIR "build")
+endif()
+
+if(NOT TEMPDIR)
+    set(TEMPDIR "/tmp")
+endif()
+
+if(NOT GENERATE_DEPENDENCIES)
+    set(GENERATE_DEPENDENCIES ON)
+endif()
+
+if(NOT USE_OPENAL)
+    set(USE_OPENAL ON)
+endif()
+
+if(NOT USE_OPENAL_DLOPEN)
+    set(USE_OPENAL_DLOPEN ON)
+endif()
+
+if(NOT USE_CURL)
+    set(USE_CURL ON)
+endif()
+
+if(NOT USE_CURL_DLOPEN)
+  if(NOT MINGW)
+    set(USE_CURL_DLOPEN OFF)
+  else()
+    set(USE_CURL_DLOPEN ON)
+  endif()
+endif()
+
+if(NOT USE_CODEC_MP3)
+    set(USE_CODEC_MP3 ON)
+endif()
+
+if(NOT USE_CODEC_VORBIS)
+    set(USE_CODEC_VORBIS ON)
+endif()
+
+if(NOT USE_CODEC_OPUS)
+    set(USE_CODEC_OPUS ON)
+endif()
+
+if(NOT USE_MUMBLE)
+    set(USE_MUMBLE ON)
+endif()
+
+if(NOT USE_VOIP)
+    set(USE_VOIP ON)
+endif()
+
+if(NOT USE_FREETYPE)
+    set(USE_FREETYPE ON)
+endif()
+
+#if(NOT USE_INTERNAL_LIBS)
+#    set(USE_INTERNAL_LIBS ON)
+#endif()
+
+if(NOT USE_INTERNAL_MP3)
+    set(USE_INTERNAL_MP3 "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_OGG)
+    set(USE_INTERNAL_OGG "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_VORBIS)
+    set(USE_INTERNAL_VORBIS "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_OPUS)
+    set(USE_INTERNAL_OPUS "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_ZLIB)
+    set(USE_INTERNAL_ZLIB "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_JPEG)
+    set(USE_INTERNAL_JPEG "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_INTERNAL_FREETYPE)
+    set(USE_INTERNAL_FREETYPE "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_LOCAL_HEADERS)
+    set(USE_LOCAL_HEADERS "${USE_INTERNAL_LIBS}")
+endif()
+
+if(NOT USE_RENDERER_DLOPEN)
+    set(USE_RENDERER_DLOPEN ON)
+endif()
+
+if(NOT SERVER_USE_RENDERER_DLOPEN)
+    set(SERVER_USE_RENDERER_DLOPEN OFF)
+endif()
+
+if(NOT USE_AUTOUPDATER)  # DON'T include unless you mean to!
+    set(USE_AUTOUPDATER OFF)
+endif()
+
+if(NOT DEBUG_CFLAGS)
+    set(DEBUG_CFLAGS "-ggdb -O0")
+endif()
+
+# #############################################################################
+
+# BD=$(BUILD_DIR)/debug-$(PLATFORM)-$(ARCH)
+# BR=$(BUILD_DIR)/release-$(PLATFORM)-$(ARCH)
+# CDIR=$(MOUNT_DIR)/client
+# SDIR=$(MOUNT_DIR)/server
+# RCOMMONDIR=$(MOUNT_DIR)/renderercommon
+# RGL1DIR=$(MOUNT_DIR)/renderergl1
+# RGL2DIR=$(MOUNT_DIR)/renderergl2
+# CMDIR=$(MOUNT_DIR)/qcommon
+# SDLDIR=$(MOUNT_DIR)/sdl
+# ASMDIR=$(MOUNT_DIR)/asm
+# SYSDIR=$(MOUNT_DIR)/sys
+# BLIBDIR=$(MOUNT_DIR)/botlib
+# NDIR=$(MOUNT_DIR)/null
+# JPDIR=$(MOUNT_DIR)/jpeg-8c
+# OGGDIR=$(MOUNT_DIR)/libogg-1.3.3
+# VORBISDIR=$(MOUNT_DIR)/libvorbis-1.3.6
+# OPUSDIR=$(MOUNT_DIR)/opus-1.2.1
+# OPUSFILEDIR=$(MOUNT_DIR)/opusfile-0.9
+# MADDIR=$(MOUNT_DIR)/libmad-0.15.1b
+# ZDIR=$(MOUNT_DIR)/zlib
+# FTDIR=$(MOUNT_DIR)/freetype-2.9
+# TOOLSDIR=$(MOUNT_DIR)/tools
+# AUTOUPDATERSRCDIR=$(MOUNT_DIR)/autoupdater
+# LIBTOMCRYPTSRCDIR=$(AUTOUPDATERSRCDIR)/rsa_tools/libtomcrypt-1.17
+# TOMSFASTMATHSRCDIR=$(AUTOUPDATERSRCDIR)/rsa_tools/tomsfastmath-0.13.1
+# NSISDIR=misc/nsis
+# SDLHDIR=$(MOUNT_DIR)/SDL2
+# LIBSDIR=$(MOUNT_DIR)/libs
+
+# bin_path=$(shell which $(1) 2> /dev/null)
+
+# # The autoupdater uses curl, so figure out its flags no matter what.
+# # We won't need this if we only build the server
+
+# # set PKG_CONFIG_PATH or PKG_CONFIG to influence this, e.g.
+# # PKG_CONFIG_PATH=/opt/cross/i386-mingw32msvc/lib/pkgconfig or
+# # PKG_CONFIG=arm-linux-gnueabihf-pkg-config
+# ifeq ($(CROSS_COMPILING),0)
+#   PKG_CONFIG ?= pkg-config
+# else
+# ifneq ($(PKG_CONFIG_PATH),)
+#   PKG_CONFIG ?= pkg-config
+# else
+#   # Don't use host pkg-config when cross-compiling.
+#   # (unknown-pkg-config is meant to be a non-existant command.)
+#   PKG_CONFIG ?= unknown-pkg-config
+# endif
+# endif
+
+if(USE_SDL)
+    find_package(SDL2 REQUIRED)
+endif()
+
+find_package(CURL REQUIRED)
+find_package(OpenAL REQUIRED)
+
+# ifneq ($(call bin_path, $(PKG_CONFIG)),)
+#   CURL_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags libcurl)
+#   CURL_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs libcurl)
+#   OPENAL_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags openal)
+#   OPENAL_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs openal)
+#   SDL_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags sdl2|sed 's/-Dmain=SDL_main//')
+#   SDL_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs sdl2)
+# else
+#   # assume they're in the system default paths (no -I or -L needed)
+#   CURL_LIBS ?= -lcurl
+#   OPENAL_LIBS ?= -lopenal
+# endif
+
+# # Use sdl2-config if all else fails
+# ifeq ($(SDL_CFLAGS),)
+#   ifneq ($(call bin_path, sdl2-config),)
+#     SDL_CFLAGS = $(shell sdl2-config --cflags)
+#     SDL_LIBS = $(shell sdl2-config --libs)
+#   endif
+# endif
+
+# ifneq ($(BUILD_FINAL),1)
+
+# # Add git version info
+# USE_GIT=
+# ifeq ($(wildcard .git),.git)
+#   GIT_REV=$(shell git show -s --pretty=format:%ad+%h --date=short | tr -d '-')
+#   ifneq ($(GIT_REV),)
+#     VERSION:=$(VERSION)+$(GIT_REV)
+#     USE_GIT=1
+#   endif
+# endif
+
+# endif
+
+
+# #############################################################################
+# # SETUP AND BUILD -- LINUX
+# #############################################################################
+
+# INSTALL=install
+# MKDIR=mkdir -p
+# EXTRA_FILES=
+# CLIENT_EXTRA_FILES=
+
+if(UNIX)
+    set(TOOLS_CFLAGS "${TOOLS_CFLAGS} -DARCH_STRING=\"${COMPILE_ARCH}\"")
+endif()
+
+if(UNIX)
+   set(BASE_CFLAGS "-Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
+     -pipe -DUSE_ICON -DARCH_STRING=\\\"$(ARCH)\\\"")
+   set(CLIENT_CFLAGS "${CLIENT_FLAGS} ${SDL_CFLAGS}")
+   add_compile_definitions(ARCH_STRING="${ARCH}")
+
+   set(OPTIMIZEVM "-O3")
+   set(OPTIMIZE ${OPTIMIZEVM} -ffast-math)
+
+   if(${ARCH} MATCHES x86_64)
+     set(OPTIMIZEVM -O3)
+     set(OPTIMIZE ${OPTIMIZEVM} -ffast-math)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES x86)
+     set(OPTIMIZEVM -O3 -march=i586)
+     set(OPTIMIZE ${OPTIMIZEVM} -ffast-math)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES ppc)
+     set(ALTIVEC_CFLAGS -maltivec)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES ppc64)
+     set(ALTIVEC_CFLAGS -maltivec)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES sparc)
+     list(APPEND OPTIMIZE -mtune=ultrasparc3 -mv8plus)
+     list(APPEND OPTIMIZEVM -mtune=ultrasparc3 -mv8plus)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES armv7l)
+     set(HAVE_VM_COMPILED ON)
+   elseif(${ARCH} MATCHES alpha)
+#     # According to http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=410555
+#     # -ffast-math will cause the client to die with SIGFPE on Alpha
+     set(OPTIMIZE ${OPTIMIZEVM})
+   endif()
+
+   #set(SHLIBEXT "so")
+   set(SHLIBCFLAGS -fPIC -fvisibility=hidden)
+   set(SHLIBLDFLAGS "-shared ${LDFLAGS}")
+
+   set(THREAD_LIBS "-lpthread")
+   set(LIBS "-ldl -lm")
+   set(AUTOUPDATER_LIBS "${AUTOUPDATER_LIBS} -ldl")
+
+   set(CLIENT_LIBS "${SDL_LIBS}")
+   set(RENDERER_LIBS "${SDL_LIBS}")
+
+   if(USE_PORTABLE_RPATH)
+     # $ is escaped using two, so this is literally $ORIGIN
+     set(CLIENT_LIBS "${CLIENT_LIBS} -Wl,-rpath,'$$ORIGIN/lib/$(ARCH)'")
+     set(RENDERER_LIBS "${RENDERER_LIBS} -Wl,-rpath,'$$ORIGIN/lib/$(ARCH)'")
+   endif()
+
+   if(USE_OPENAL)
+     if(USE_OPENAL_DLOPEN)
+       set(CLIENT_LIBS "${CLIENT_LIBS} ${THREAD_LIBS} ${OPENAL_LIBS}")
+     endif()
+   endif()
+
+   if(USE_CURL)
+     set(CLIENT_CFLAGS "${CLIENT_CFLAGS} ${CURL_CFLAGS}")
+     if(NOT USE_CURL_DLOPEN)
+       set(CLIENT_LIBS "${CLIENT_LIBS} ${CURL_LIBS}")
+     endif()
+   endif()
+
+   if(USE_MUMBLE)
+     set(CLIENT_LIBS "${CLIENT_LIBS} -lrt")
+   endif()
+
+   if("${ARCH}" MATCHES "x86")
+     # linux32 make ...
+     set(BASE_CFLAGS "${BASE_CFLAGS} -m32")
+   elseif ("${ARCH}" MATCHES "ppc64")
+     set(BASE_CFLAGS "${BASE_CFLAGS} -m64")
+   endif()
+endif() # ifeq Linux
+
+# #############################################################################
+# # SETUP AND BUILD -- MAC OS X
+# #############################################################################
+
+# ifeq ($(PLATFORM),darwin)
+#   HAVE_VM_COMPILED=true
+#   LIBS = -framework Cocoa
+#   CLIENT_LIBS=
+#   RENDERER_LIBS=
+#   OPTIMIZEVM = -O3
+
+#   # Default minimum Mac OS X version
+#   ifeq ($(MACOSX_VERSION_MIN),)
+#     MACOSX_VERSION_MIN=10.9
+#     ifneq ($(findstring $(ARCH),ppc ppc64),)
+#       MACOSX_VERSION_MIN=10.5
+#     endif
+#     ifeq ($(ARCH),x86)
+#       MACOSX_VERSION_MIN=10.6
+#     endif
+#     ifeq ($(ARCH),x86_64)
+#       # trying to find default SDK version is hard
+#       # macOS 10.15 requires -sdk macosx but 10.11 doesn't support it
+#       # macOS 10.6 doesn't have -show-sdk-version
+#       DEFAULT_SDK=$(shell xcrun -sdk macosx -show-sdk-version 2> /dev/null)
+#       ifeq ($(DEFAULT_SDK),)
+#         DEFAULT_SDK=$(shell xcrun -show-sdk-version 2> /dev/null)
+#       endif
+#       ifeq ($(DEFAULT_SDK),)
+#         $(error Error: Unable to determine macOS SDK version.  On macOS 10.6 to 10.8 run: make MACOSX_VERSION_MIN=10.6  On macOS 10.9 or later run: make MACOSX_VERSION_MIN=10.9 );
+#       endif
+
+#       ifneq ($(findstring $(DEFAULT_SDK),10.6 10.7 10.8),)
+#         MACOSX_VERSION_MIN=10.6
+#       else
+#         MACOSX_VERSION_MIN=10.9
+#       endif
+#     endif
+#     ifeq ($(ARCH),arm64)
+#       MACOSX_VERSION_MIN=11.0
+#     endif
+#   endif
+
+#   MACOSX_MAJOR=$(shell echo $(MACOSX_VERSION_MIN) | cut -d. -f1)
+#   MACOSX_MINOR=$(shell echo $(MACOSX_VERSION_MIN) | cut -d. -f2)
+#   ifeq ($(shell test $(MACOSX_MINOR) -gt 9; echo $$?),0)
+#     # Multiply and then remove decimal. 10.10 -> 101000.0 -> 101000
+#     MAC_OS_X_VERSION_MIN_REQUIRED=$(shell echo "$(MACOSX_MAJOR) * 10000 + $(MACOSX_MINOR) * 100" | bc | cut -d. -f1)
+#   else
+#     # Multiply by 100 and then remove decimal. 10.7 -> 1070.0 -> 1070
+#     MAC_OS_X_VERSION_MIN_REQUIRED=$(shell echo "$(MACOSX_VERSION_MIN) * 100" | bc | cut -d. -f1)
+#   endif
+
+#   LDFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN)
+#   BASE_CFLAGS += -mmacosx-version-min=$(MACOSX_VERSION_MIN) \
+#                  -DMAC_OS_X_VERSION_MIN_REQUIRED=$(MAC_OS_X_VERSION_MIN_REQUIRED)
+
+#   MACOSX_ARCH=$(ARCH)
+#   ifeq ($(ARCH),x86)
+#     MACOSX_ARCH=i386
+#   endif
+
+#   ifeq ($(ARCH),ppc)
+#     BASE_CFLAGS += -arch ppc
+#     ALTIVEC_CFLAGS = -faltivec
+#   endif
+#   ifeq ($(ARCH),ppc64)
+#     BASE_CFLAGS += -arch ppc64
+#     ALTIVEC_CFLAGS = -faltivec
+#   endif
+#   ifeq ($(ARCH),x86)
+#     OPTIMIZEVM += -march=prescott -mfpmath=sse
+#     # x86 vm will crash without -mstackrealign since MMX instructions will be
+#     # used no matter what and they corrupt the frame pointer in VM calls
+#     BASE_CFLAGS += -arch i386 -m32 -mstackrealign
+#   endif
+#   ifeq ($(ARCH),x86_64)
+#     OPTIMIZEVM += -mfpmath=sse
+#     BASE_CFLAGS += -arch x86_64
+#   endif
+#   ifeq ($(ARCH),arm64)
+#     # HAVE_VM_COMPILED=false # TODO: implement compiled vm
+#     BASE_CFLAGS += -arch arm64
+#   endif
+
+#   # When compiling on OSX for OSX, we're not cross compiling as far as the
+#   # Makefile is concerned, as target architecture is specified as a compiler
+#   # argument
+#   ifeq ($(COMPILE_PLATFORM),darwin)
+#     CROSS_COMPILING=0
+#   endif
+
+#   ifeq ($(CROSS_COMPILING),1)
+#     # If CC is already set to something generic, we probably want to use
+#     # something more specific
+#     ifneq ($(findstring $(strip $(CC)),cc gcc),)
+#       CC=
+#     endif
+
+#     ifndef CC
+#       ifndef DARWIN
+#         # macOS 10.9 SDK
+#         DARWIN=13
+#         ifneq ($(findstring $(ARCH),ppc ppc64),)
+#           # macOS 10.5 SDK, though as of writing osxcross doesn't support ppc/ppc64
+#           DARWIN=9
+#         endif
+#         ifeq ($(ARCH),arm64)
+#           # macOS 11.3 SDK
+#           DARWIN=20.4
+#         endif
+#       endif
+
+#       CC=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-cc
+#       RANLIB=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-ranlib
+#       LIPO=$(MACOSX_ARCH)-apple-darwin$(DARWIN)-lipo
+
+#       ifeq ($(call bin_path, $(CC)),)
+#         $(error Unable to find osxcross $(CC))
+#       endif
+#     endif
+#   endif
+
+#   ifndef LIPO
+#     LIPO=lipo
+#   endif
+
+#   BASE_CFLAGS += -fno-strict-aliasing -fno-common -pipe -DUSE_ICON
+
+#   ifeq ($(USE_OPENAL),1)
+#     ifneq ($(USE_LOCAL_HEADERS),1)
+#       CLIENT_CFLAGS += -I/System/Library/Frameworks/OpenAL.framework/Headers
+#     endif
+#     ifneq ($(USE_OPENAL_DLOPEN),1)
+#       CLIENT_LIBS += -framework OpenAL
+#     endif
+#   endif
+
+#   ifeq ($(USE_CURL),1)
+#     CLIENT_CFLAGS += $(CURL_CFLAGS)
+#     ifneq ($(USE_CURL_DLOPEN),1)
+#       CLIENT_LIBS += $(CURL_LIBS)
+#     endif
+#   endif
+
+#   BASE_CFLAGS += -D_THREAD_SAFE=1
+
+#   CLIENT_LIBS += -framework IOKit
+#   RENDERER_LIBS += -framework OpenGL
+
+#   ifeq ($(USE_LOCAL_HEADERS),1)
+#     ifeq ($(shell test $(MAC_OS_X_VERSION_MIN_REQUIRED) -ge 1090; echo $$?),0)
+#       # Universal Binary 2 - for running on macOS 10.9 or later
+#       # x86_64 (10.9 or later), arm64 (11.0 or later)
+#       MACLIBSDIR=$(LIBSDIR)/macosx-ub2
+#       BASE_CFLAGS += -I$(SDLHDIR)/include
+#     else
+#       # Universal Binary - for running on Mac OS X 10.5 or later
+#       # ppc (10.5/10.6), x86 (10.6 or later), x86_64 (10.6 or later)
+#       #
+#       # x86/x86_64 on 10.5 will run the ppc build.
+#       #
+#       # SDL 2.0.1,  last with Mac OS X PowerPC
+#       # SDL 2.0.4,  last with Mac OS X 10.5 (x86/x86_64)
+#       # SDL 2.0.22, last with Mac OS X 10.6 (x86/x86_64)
+#       #
+#       # code/libs/macosx-ub/libSDL2-2.0.0.dylib contents
+#       # - ppc build is SDL 2.0.1 with a header change so it compiles
+#       # - x86/x86_64 build are SDL 2.0.22
+#       MACLIBSDIR=$(LIBSDIR)/macosx-ub
+#       ifneq ($(findstring $(ARCH),ppc ppc64),)
+#         BASE_CFLAGS += -I$(SDLHDIR)/include-macppc
+#       else
+#         BASE_CFLAGS += -I$(SDLHDIR)/include-2.0.22
+#       endif
+#     endif
+
+#     # We copy sdlmain before ranlib'ing it so that subversion doesn't think
+#     #  the file has been modified by each build.
+#     LIBSDLMAIN=$(B)/libSDL2main.a
+#     LIBSDLMAINSRC=$(MACLIBSDIR)/libSDL2main.a
+#     CLIENT_LIBS += $(MACLIBSDIR)/libSDL2-2.0.0.dylib
+#     RENDERER_LIBS += $(MACLIBSDIR)/libSDL2-2.0.0.dylib
+#     CLIENT_EXTRA_FILES += $(MACLIBSDIR)/libSDL2-2.0.0.dylib
+#   else
+#     BASE_CFLAGS += -I/Library/Frameworks/SDL2.framework/Headers
+#     CLIENT_LIBS += -framework SDL2
+#     RENDERER_LIBS += -framework SDL2
+#   endif
+
+#   OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+
+#   SHLIBEXT=dylib
+#   SHLIBCFLAGS=-fPIC -fno-common
+#   SHLIBLDFLAGS=-dynamiclib $(LDFLAGS) -Wl,-U,_com_altivec
+
+#   NOTSHLIBCFLAGS=-mdynamic-no-pic
+
+# else # ifeq darwin
+
+
+# #############################################################################
+# # SETUP AND BUILD -- MINGW32
+# #############################################################################
+
+# ifdef MINGW
+if(MINGW)
+
+#   ifeq ($(CROSS_COMPILING),1)
+#     # If CC is already set to something generic, we probably want to use
+#     # something more specific
+#     ifneq ($(findstring $(strip $(CC)),cc gcc),)
+#       CC=
+#     endif
+
+#     # We need to figure out the correct gcc and windres
+#     ifeq ($(ARCH),x86_64)
+#       MINGW_PREFIXES=x86_64-w64-mingw32 amd64-mingw32msvc
+#     endif
+#     ifeq ($(ARCH),x86)
+#       MINGW_PREFIXES=i686-w64-mingw32 i586-mingw32msvc i686-pc-mingw32
+#     endif
+
+#     ifndef CC
+#       CC=$(firstword $(strip $(foreach MINGW_PREFIX, $(MINGW_PREFIXES), \
+#          $(call bin_path, $(MINGW_PREFIX)-gcc))))
+#     endif
+
+#     ifndef WINDRES
+#       WINDRES=$(firstword $(strip $(foreach MINGW_PREFIX, $(MINGW_PREFIXES), \
+#          $(call bin_path, $(MINGW_PREFIX)-windres))))
+#     endif
+#   else
+#     # Some MinGW installations define CC to cc, but don't actually provide cc,
+#     # so check that CC points to a real binary and use gcc if it doesn't
+#     ifeq ($(call bin_path, $(CC)),)
+#       CC=gcc
+#     endif
+
+#   endif
+
+#   # using generic windres if specific one is not present
+#   ifndef WINDRES
+#     WINDRES=windres
+#   endif
+
+#   ifeq ($(CC),)
+#     $(error Cannot find a suitable cross compiler for $(PLATFORM))
+#   endif
+
+#   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
+#     -DUSE_ICON
+
+#   # In the absence of wspiapi.h, require Windows XP or later
+#   ifeq ($(shell test -e $(CMDIR)/wspiapi.h; echo $$?),1)
+#     BASE_CFLAGS += -DWINVER=0x501
+#   endif
+
+#   ifeq ($(USE_OPENAL),1)
+#     CLIENT_CFLAGS += $(OPENAL_CFLAGS)
+#     ifneq ($(USE_OPENAL_DLOPEN),1)
+#       CLIENT_LDFLAGS += $(OPENAL_LDFLAGS)
+#     endif
+#   endif
+
+#   ifeq ($(ARCH),x86_64)
+#     OPTIMIZEVM = -O3
+#     OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+#     HAVE_VM_COMPILED = true
+#   endif
+#   ifeq ($(ARCH),x86)
+#     OPTIMIZEVM = -O3 -march=i586
+#     OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+#     HAVE_VM_COMPILED = true
+#   endif
+
+#   SHLIBEXT=dll
+#   SHLIBCFLAGS=
+#   SHLIBLDFLAGS=-shared $(LDFLAGS)
+
+   set(BINEXT ".exe")
+
+#   ifeq ($(CROSS_COMPILING),0)
+#     TOOLS_BINEXT=.exe
+#   endif
+
+#   ifeq ($(COMPILE_PLATFORM),cygwin)
+#     TOOLS_BINEXT=.exe
+
+#     # Under cygwin the default of using gcc for TOOLS_CC won't work, so
+#     # we need to figure out the appropriate compiler to use, based on the
+#     # host architecture that we're running under (as tools run on the host)
+#     ifeq ($(COMPILE_ARCH),x86_64)
+#       TOOLS_MINGW_PREFIXES=x86_64-w64-mingw32 amd64-mingw32msvc
+#     endif
+#     ifeq ($(COMPILE_ARCH),x86)
+#       TOOLS_MINGW_PREFIXES=i686-w64-mingw32 i586-mingw32msvc i686-pc-mingw32
+#     endif
+
+#     TOOLS_CC=$(firstword $(strip $(foreach TOOLS_MINGW_PREFIX, $(TOOLS_MINGW_PREFIXES), \
+#       $(call bin_path, $(TOOLS_MINGW_PREFIX)-gcc))))
+#   endif
+
+#   LIBS= -lws2_32 -lwinmm -lpsapi -lshlwapi
+#   AUTOUPDATER_LIBS += -lwininet
+
+#   # clang 3.4 doesn't support this
+#   ifneq ("$(CC)", $(findstring "$(CC)", "clang" "clang++"))
+#     CLIENT_LDFLAGS += -mwindows
+#   endif
+#   CLIENT_LIBS = -lgdi32 -lole32
+#   RENDERER_LIBS = -lgdi32 -lole32 -static-libgcc
+
+#   ifeq ($(USE_FREETYPE),1)
+#     ifneq ($(USE_INTERNAL_FREETYPE),1)
+#       FREETYPE_CFLAGS = -Ifreetype2
+#     endif
+#   endif
+
+#   ifeq ($(USE_CURL),1)
+#     CLIENT_CFLAGS += $(CURL_CFLAGS)
+#     ifneq ($(USE_CURL_DLOPEN),1)
+#       ifeq ($(USE_LOCAL_HEADERS),1)
+#         CLIENT_CFLAGS += -DCURL_STATICLIB
+#         ifeq ($(ARCH),x86_64)
+#           CLIENT_LIBS += $(LIBSDIR)/win64/libcurl.a -lcrypt32
+#         else
+#           CLIENT_LIBS += $(LIBSDIR)/win32/libcurl.a -lcrypt32
+#         endif
+#       else
+#         CLIENT_LIBS += $(CURL_LIBS)
+#       endif
+#     endif
+#   endif
+
+#   ifeq ($(ARCH),x86)
+#     # build 32bit
+#     BASE_CFLAGS += -m32
+#   else
+#     BASE_CFLAGS += -m64
+#   endif
+
+#   # libmingw32 must be linked before libSDLmain
+#   CLIENT_LIBS += -lmingw32
+#   RENDERER_LIBS += -lmingw32
+
+#   ifeq ($(USE_LOCAL_HEADERS),1)
+#     CLIENT_CFLAGS += -I$(SDLHDIR)/include
+#     ifeq ($(ARCH),x86)
+#     CLIENT_LIBS += $(LIBSDIR)/win32/libSDL2main.a \
+#                       $(LIBSDIR)/win32/libSDL2.dll.a
+#     RENDERER_LIBS += $(LIBSDIR)/win32/libSDL2main.a \
+#                       $(LIBSDIR)/win32/libSDL2.dll.a
+#     SDLDLL=SDL2.dll
+#     CLIENT_EXTRA_FILES += $(LIBSDIR)/win32/SDL2.dll
+#     else
+#     CLIENT_LIBS += $(LIBSDIR)/win64/libSDL264main.a \
+#                       $(LIBSDIR)/win64/libSDL264.dll.a
+#     RENDERER_LIBS += $(LIBSDIR)/win64/libSDL264main.a \
+#                       $(LIBSDIR)/win64/libSDL264.dll.a
+#     SDLDLL=SDL264.dll
+#     CLIENT_EXTRA_FILES += $(LIBSDIR)/win64/SDL264.dll
+#     endif
+#   else
+#     CLIENT_CFLAGS += $(SDL_CFLAGS)
+#     CLIENT_LIBS += $(SDL_LIBS)
+#     RENDERER_LIBS += $(SDL_LIBS)
+#     SDLDLL=SDL2.dll
+#   endif
+
+endif() # ifdef MINGW
+
+# #############################################################################
+# # SETUP AND BUILD -- FREEBSD
+# #############################################################################
+
+# ifeq ($(PLATFORM),freebsd)
+
+#   # flags
+#   BASE_CFLAGS = \
+#     -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
+#     -DUSE_ICON -DMAP_ANONYMOUS=MAP_ANON
+#   CLIENT_CFLAGS += $(SDL_CFLAGS)
+#   HAVE_VM_COMPILED = true
+
+#   OPTIMIZEVM =
+#   OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=-fPIC
+#   SHLIBLDFLAGS=-shared $(LDFLAGS)
+
+#   THREAD_LIBS=-lpthread
+#   # don't need -ldl (FreeBSD)
+#   LIBS=-lm
+
+#   CLIENT_LIBS =
+
+#   CLIENT_LIBS += $(SDL_LIBS)
+#   RENDERER_LIBS = $(SDL_LIBS)
+
+#   # optional features/libraries
+#   ifeq ($(USE_OPENAL),1)
+#     ifeq ($(USE_OPENAL_DLOPEN),1)
+#       CLIENT_LIBS += $(THREAD_LIBS) $(OPENAL_LIBS)
+#     endif
+#   endif
+
+#   ifeq ($(USE_CURL),1)
+#     CLIENT_CFLAGS += $(CURL_CFLAGS)
+#     ifeq ($(USE_CURL_DLOPEN),1)
+#       CLIENT_LIBS += $(CURL_LIBS)
+#     endif
+#   endif
+
+#   # cross-compiling tweaks
+#   ifeq ($(ARCH),x86)
+#     ifeq ($(CROSS_COMPILING),1)
+#       BASE_CFLAGS += -m32
+#     endif
+#   endif
+#   ifeq ($(ARCH),x86_64)
+#     ifeq ($(CROSS_COMPILING),1)
+#       BASE_CFLAGS += -m64
+#     endif
+#   endif
+# else # ifeq freebsd
+
+# #############################################################################
+# # SETUP AND BUILD -- OPENBSD
+# #############################################################################
+
+# ifeq ($(PLATFORM),openbsd)
+
+#   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
+#     -pipe -DUSE_ICON -DMAP_ANONYMOUS=MAP_ANON
+#   CLIENT_CFLAGS += $(SDL_CFLAGS)
+
+#   OPTIMIZEVM = -O3
+#   OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+
+#   ifeq ($(ARCH),x86_64)
+#     OPTIMIZEVM = -O3
+#     OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+#     HAVE_VM_COMPILED = true
+#   else
+#   ifeq ($(ARCH),x86)
+#     OPTIMIZEVM = -O3 -march=i586
+#     OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+#     HAVE_VM_COMPILED=true
+#   else
+#   ifeq ($(ARCH),ppc)
+#     ALTIVEC_CFLAGS = -maltivec
+#     HAVE_VM_COMPILED=true
+#   endif
+#   ifeq ($(ARCH),ppc64)
+#     ALTIVEC_CFLAGS = -maltivec
+#     HAVE_VM_COMPILED=true
+#   endif
+#   ifeq ($(ARCH),sparc64)
+#     OPTIMIZE += -mtune=ultrasparc3 -mv8plus
+#     OPTIMIZEVM += -mtune=ultrasparc3 -mv8plus
+#     HAVE_VM_COMPILED=true
+#   endif
+#   ifeq ($(ARCH),alpha)
+#     # According to http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=410555
+#     # -ffast-math will cause the client to die with SIGFPE on Alpha
+#     OPTIMIZE = $(OPTIMIZEVM)
+#   endif
+#   endif
+#   endif
+
+#   ifeq ($(USE_CURL),1)
+#     CLIENT_CFLAGS += $(CURL_CFLAGS)
+#     USE_CURL_DLOPEN=0
+#   endif
+
+#   # no shm_open on OpenBSD
+#   USE_MUMBLE=0
+
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=-fPIC
+#   SHLIBLDFLAGS=-shared $(LDFLAGS)
+
+#   THREAD_LIBS=-lpthread
+#   LIBS=-lm
+
+#   CLIENT_LIBS =
+
+#   CLIENT_LIBS += $(SDL_LIBS)
+#   RENDERER_LIBS = $(SDL_LIBS)
+
+#   ifeq ($(USE_OPENAL),1)
+#     ifneq ($(USE_OPENAL_DLOPEN),1)
+#       CLIENT_LIBS += $(THREAD_LIBS) $(OPENAL_LIBS)
+#     endif
+#   endif
+
+#   ifeq ($(USE_CURL),1)
+#     ifneq ($(USE_CURL_DLOPEN),1)
+#       CLIENT_LIBS += $(CURL_LIBS)
+#     endif
+#   endif
+# else # ifeq openbsd
+
+# #############################################################################
+# # SETUP AND BUILD -- NETBSD
+# #############################################################################
+
+# ifeq ($(PLATFORM),netbsd)
+
+#   LIBS=-lm
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=-fPIC
+#   SHLIBLDFLAGS=-shared $(LDFLAGS)
+#   THREAD_LIBS=-lpthread
+
+#   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes
+
+#   ifeq ($(ARCH),x86)
+#     HAVE_VM_COMPILED=true
+#   endif
+
+#   BUILD_CLIENT = 0
+# else # ifeq netbsd
+
+# #############################################################################
+# # SETUP AND BUILD -- IRIX
+# #############################################################################
+
+# ifeq ($(PLATFORM),irix64)
+#   LIB=lib
+
+#   ARCH=mips
+
+#   CC = c99
+
+#   BASE_CFLAGS=-Dstricmp=strcasecmp -Xcpluscomm -woff 1185 \
+#     -I. -I$(ROOT)/usr/include
+#   CLIENT_CFLAGS += $(SDL_CFLAGS)
+#   OPTIMIZE = -O3
+
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=
+#   SHLIBLDFLAGS=-shared
+
+#   LIBS=-ldl -lm -lgen
+#   AUTOUPDATER_LIBS += -ldl
+
+#   # FIXME: The X libraries probably aren't necessary?
+#   CLIENT_LIBS=-L/usr/X11/$(LIB) $(SDL_LIBS) \
+#     -lX11 -lXext -lm
+#   RENDERER_LIBS = $(SDL_LIBS)
+
+# else # ifeq IRIX
+
+# #############################################################################
+# # SETUP AND BUILD -- SunOS
+# #############################################################################
+
+# ifeq ($(PLATFORM),sunos)
+
+#   CC=gcc
+#   INSTALL=ginstall
+#   MKDIR=gmkdir -p
+#   COPYDIR="/usr/local/share/games/spearmint"
+
+#   ifneq ($(ARCH),x86)
+#     ifneq ($(ARCH),sparc)
+#       $(error arch $(ARCH) is currently not supported)
+#     endif
+#   endif
+
+#   BASE_CFLAGS = -Wall -fno-strict-aliasing -Wimplicit -Wstrict-prototypes \
+#     -pipe -DUSE_ICON
+#   CLIENT_CFLAGS += $(SDL_CFLAGS)
+
+#   OPTIMIZEVM = -O3 -funroll-loops
+
+#   ifeq ($(ARCH),sparc)
+#     OPTIMIZEVM += -O3 \
+#       -fstrength-reduce -falign-functions=2 \
+#       -mtune=ultrasparc3 -mv8plus -mno-faster-structs
+#     HAVE_VM_COMPILED=true
+#   else
+#   ifeq ($(ARCH),x86)
+#     OPTIMIZEVM += -march=i586 -fomit-frame-pointer \
+#       -falign-functions=2 -fstrength-reduce
+#     HAVE_VM_COMPILED=true
+#     BASE_CFLAGS += -m32
+#     CLIENT_CFLAGS += -I/usr/X11/include/NVIDIA
+#     CLIENT_LDFLAGS += -L/usr/X11/lib/NVIDIA -R/usr/X11/lib/NVIDIA
+#   endif
+#   endif
+
+#   OPTIMIZE = $(OPTIMIZEVM) -ffast-math
+
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=-fPIC
+#   SHLIBLDFLAGS=-shared $(LDFLAGS)
+
+#   THREAD_LIBS=-lpthread
+#   LIBS=-lsocket -lnsl -ldl -lm
+#   AUTOUPDATER_LIBS += -ldl
+
+#   BOTCFLAGS=-O0
+
+#   CLIENT_LIBS +=$(SDL_LIBS) -lX11 -lXext -liconv -lm
+#   RENDERER_LIBS = $(SDL_LIBS)
+
+# else # ifeq sunos
+
+# #############################################################################
+# # SETUP AND BUILD -- GENERIC
+# #############################################################################
+#   BASE_CFLAGS=
+#   OPTIMIZE = -O3
+
+#   SHLIBEXT=so
+#   SHLIBCFLAGS=-fPIC
+#   SHLIBLDFLAGS=-shared
+
+# endif #Linux
+# endif #darwin
+# endif #MINGW
+# endif #FreeBSD
+# endif #OpenBSD
+# endif #NetBSD
+# endif #IRIX
+# endif #SunOS
+
+# ifndef CC
+#   CC=gcc
+# endif
+
+# ifndef RANLIB
+#   RANLIB=ranlib
+# endif
+
+# ifneq ($(HAVE_VM_COMPILED),true)
+#   BASE_CFLAGS += -DNO_VM_COMPILED
+# endif
+
+# TARGETS =
+
+if(NOT FULLBINEXT)
+  set(FULLBINEXT "_${ARCH}${BINEXT}")
+endif()
+
+if(NOT SHLIBNAME)
+   set(SHLIBNAME "${ARCH}")
+endif()
+
+# ifneq ($(BUILD_SERVER),0)
+#   TARGETS += $(B)/$(SERVERBIN)$(FULLBINEXT)
+# endif
+
+# ifneq ($(BUILD_CLIENT),0)
+#   ifneq ($(USE_RENDERER_DLOPEN),0)
+#     TARGETS += $(B)/$(CLIENTBIN)$(FULLBINEXT) $(B)/$(RENDERER_PREFIX)opengl1_$(SHLIBNAME)
+#     ifneq ($(BUILD_RENDERER_OPENGL2),0)
+#       TARGETS += $(B)/$(RENDERER_PREFIX)opengl2_$(SHLIBNAME)
+#     endif
+#   else
+#     TARGETS += $(B)/$(CLIENTBIN)$(FULLBINEXT)
+#     ifneq ($(BUILD_RENDERER_OPENGL2),0)
+#       TARGETS += $(B)/$(CLIENTBIN)_opengl2$(FULLBINEXT)
+#     endif
+#   endif
+# endif
+
+# ifneq ($(BUILD_AUTOUPDATER),0)
+#   # PLEASE NOTE that if you run an exe on Windows Vista or later
+#   #  with "setup", "install", "update" or other related terms, it
+#   #  will unconditionally trigger a UAC prompt, and in the case of
+#   #  ioq3 calling CreateProcess() on it, it'll just fail immediately.
+#   #  So don't call this thing "autoupdater" here!
+#   AUTOUPDATER_BIN := autosyncerator$(FULLBINEXT)
+#   TARGETS += $(B)/$(AUTOUPDATER_BIN)
+# endif
+
+# ifeq ($(USE_OPENAL),1)
+#   CLIENT_CFLAGS += -DUSE_OPENAL
+#   ifeq ($(USE_OPENAL_DLOPEN),1)
+#     CLIENT_CFLAGS += -DUSE_OPENAL_DLOPEN
+#   endif
+# endif
+
+# ifeq ($(USE_CURL),1)
+#   CLIENT_CFLAGS += -DUSE_CURL
+#   ifeq ($(USE_CURL_DLOPEN),1)
+#     CLIENT_CFLAGS += -DUSE_CURL_DLOPEN
+#   endif
+# endif
+
+# ifeq ($(USE_CODEC_MP3),1)
+#   CLIENT_CFLAGS += -DUSE_CODEC_MP3
+
+#   ifeq ($(USE_INTERNAL_MP3),1)
+#     MAD_CFLAGS = -DUSE_INTERNAL_MP3 -I$(MADDIR)/include
+#     ifeq ($(ARCH),x86)
+#       MAD_CFLAGS += -DFPM_INTEL
+#     else
+#     ifeq ($(ARCH),x86_64)
+#       MAD_CFLAGS += -DFPM_64BIT
+#     else
+#     ifeq ($(ARCH),ppc)
+#       MAD_CFLAGS += -DFPM_PPC
+#     else
+#     ifeq ($(ARCH),arm)
+#       MAD_CFLAGS += -DFPM_ARM
+#     else
+#     ifeq ($(ARCH),mips)
+#       MAD_CFLAGS += -DFPM_MIPS
+#     else
+#     ifeq ($(ARCH),sparc)
+#       MAD_CFLAGS += -DFPM_SPARC
+#     else
+#       MAD_CFLAGS += -DFPM_DEFAULT
+#     endif
+#     endif
+#     endif
+#     endif
+#     endif
+#     endif
+#   else
+#     MAD_CFLAGS ?= $(shell pkg-config --silence-errors --cflags mad || true)
+#     MAD_LIBS ?= $(shell pkg-config --silence-errors --libs mad || echo -lmad)
+#   endif
+
+#   CLIENT_CFLAGS += $(MAD_CFLAGS)
+#   CLIENT_LIBS += $(MAD_LIBS)
+# endif
+
+# ifeq ($(USE_VOIP),1)
+#   CLIENT_CFLAGS += -DUSE_VOIP
+#   SERVER_CFLAGS += -DUSE_VOIP
+#   NEED_OPUS=1
+# endif
+
+# ifeq ($(USE_CODEC_OPUS),1)
+#   CLIENT_CFLAGS += -DUSE_CODEC_OPUS
+#   NEED_OPUS=1
+# endif
+
+# ifeq ($(NEED_OPUS),1)
+#   ifeq ($(USE_INTERNAL_OPUS),1)
+#     OPUS_CFLAGS = -DOPUS_BUILD -DHAVE_LRINTF -DFLOATING_POINT -DFLOAT_APPROX -DUSE_ALLOCA \
+#       -I$(OPUSDIR)/include -I$(OPUSDIR)/celt -I$(OPUSDIR)/silk \
+#       -I$(OPUSDIR)/silk/float -I$(OPUSFILEDIR)/include
+#   else
+#     OPUS_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags opusfile opus || true)
+#     OPUS_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs opusfile opus || echo -lopusfile -lopus)
+#   endif
+#   CLIENT_CFLAGS += $(OPUS_CFLAGS)
+#   CLIENT_LIBS += $(OPUS_LIBS)
+#   NEED_OGG=1
+# endif
+
+# ifeq ($(USE_CODEC_VORBIS),1)
+#   CLIENT_CFLAGS += -DUSE_CODEC_VORBIS
+#   ifeq ($(USE_INTERNAL_VORBIS),1)
+#     CLIENT_CFLAGS += -I$(VORBISDIR)/include -I$(VORBISDIR)/lib
+#   else
+#     VORBIS_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags vorbisfile vorbis || true)
+#     VORBIS_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs vorbisfile vorbis || echo -lvorbisfile -lvorbis)
+#   endif
+#   CLIENT_CFLAGS += $(VORBIS_CFLAGS)
+#   CLIENT_LIBS += $(VORBIS_LIBS)
+#   NEED_OGG=1
+# endif
+
+# ifeq ($(NEED_OGG),1)
+#   ifeq ($(USE_INTERNAL_OGG),1)
+#     OGG_CFLAGS = -I$(OGGDIR)/include
+#   else
+#     OGG_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags ogg || true)
+#     OGG_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs ogg || echo -logg)
+#   endif
+#   CLIENT_CFLAGS += $(OGG_CFLAGS)
+#   CLIENT_LIBS += $(OGG_LIBS)
+# endif
+
+# ifeq ($(USE_RENDERER_DLOPEN),1)
+#   CLIENT_CFLAGS += -DUSE_RENDERER_DLOPEN
+# endif
+
+# ifeq ($(SERVER_USE_RENDERER_DLOPEN),1)
+#   SERVER_CFLAGS += -DUSE_RENDERER_DLOPEN
+# endif
+
+# ifeq ($(USE_MUMBLE),1)
+#   CLIENT_CFLAGS += -DUSE_MUMBLE
+# endif
+
+# ifeq ($(USE_INTERNAL_ZLIB),1)
+#   ZLIB_CFLAGS = -DNO_GZIP -I$(ZDIR)
+# else
+#   ZLIB_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags zlib || true)
+#   ZLIB_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs zlib || echo -lz)
+# endif
+# BASE_CFLAGS += $(ZLIB_CFLAGS)
+# LIBS += $(ZLIB_LIBS)
+if(USE_INTERNAL_ZLIB)
+    AUX_SOURCE_DIRECTORY(code/zlib ZLIB_SRCS)
+else()
+    find_package(ZLIB REQUIRED)
+endif()
+
+if(USE_INTERNAL_JPEG)
+    AUX_SOURCE_DIRECTORY(code/jpeg-8c JPEG_SRCS)
+    set(BASE_CFLAGS "${BASE_CFLAGS} -DUSE_INTERNAL_JPEG -I${JPEG_SRCS}")
+else()
+    find_package(JPEG REQUIRED)
+    set(RENDERER_LIBS "${RENDERER_LIBS} ${JPEG_LIBRARIES}")
+endif()
+#if(USE_INTERNAL_JPEG)
+#   BASE_CFLAGS += -DUSE_INTERNAL_JPEG
+#   BASE_CFLAGS += -I$(JPDIR)
+#else()
+#   # IJG libjpeg doesn't have pkg-config, but libjpeg-turbo uses libjpeg.pc;
+#   # we fall back to hard-coded answers if libjpeg.pc is unavailable
+#   JPEG_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags libjpeg || true)
+#   JPEG_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs libjpeg || echo -ljpeg)
+#   BASE_CFLAGS += $(JPEG_CFLAGS)
+#   RENDERER_LIBS += $(JPEG_LIBS)
+#endif()
+
+# ifeq ($(USE_FREETYPE),1)
+#   ifeq ($(USE_INTERNAL_FREETYPE),1)
+#     FREETYPE_CFLAGS += -I$(FTDIR)/include -DFT2_BUILD_LIBRARY
+#   else
+#     FREETYPE_CFLAGS ?= $(shell $(PKG_CONFIG) --silence-errors --cflags freetype2 || true)
+#     FREETYPE_LIBS ?= $(shell $(PKG_CONFIG) --silence-errors --libs freetype2 || echo -lfreetype)
+#   endif
+
+#   BASE_CFLAGS += -DBUILD_FREETYPE $(FREETYPE_CFLAGS)
+#   RENDERER_LIBS += $(FREETYPE_LIBS)
+# endif
+
+# ifeq ($(USE_AUTOUPDATER),1)
+#   CLIENT_CFLAGS += -DUSE_AUTOUPDATER -DAUTOUPDATER_BIN=\\\"$(AUTOUPDATER_BIN)\\\"
+#   SERVER_CFLAGS += -DUSE_AUTOUPDATER -DAUTOUPDATER_BIN=\\\"$(AUTOUPDATER_BIN)\\\"
+# endif
+
+# ifeq ($(BUILD_AUTOUPDATER),1)
+#   AUTOUPDATER_LIBS += $(LIBTOMCRYPTSRCDIR)/libtomcrypt.a $(TOMSFASTMATHSRCDIR)/libtfm.a
+# endif
+
+# ifeq ("$(CC)", $(findstring "$(CC)", "clang" "clang++"))
+#   BASE_CFLAGS += -Qunused-arguments
+# endif
+
+if(DEFINED DEFAULT_BASEDIR)
+   list(APPEND BASE_CFLAGS -DDEFAULT_BASEDIR=\"${DEFAULT_BASEDIR}\")
+endif()
+
+# ifeq ($(USE_LOCAL_HEADERS),1)
+#   BASE_CFLAGS += -DUSE_LOCAL_HEADERS
+# endif
+
+# ifeq ($(GENERATE_DEPENDENCIES),1)
+#   DEPEND_CFLAGS = -MMD
+# else
+#   DEPEND_CFLAGS =
+# endif
+
+# ifeq ($(NO_STRIP),1)
+#   STRIP_FLAG =
+# else
+#   STRIP_FLAG = -s
+# endif
+
+# # https://reproducible-builds.org/specs/source-date-epoch/
+# ifdef SOURCE_DATE_EPOCH
+#   BASE_BUILD_DEFINES += -DPRODUCT_DATE=\\\"$(shell date --date="@$$SOURCE_DATE_EPOCH" "+%b %_d %Y" | sed -e 's/ /\\\ /g')\\\"
+# endif
+
+# BASE_BUILD_DEFINES += -DPRODUCT_VERSION=\\\"$(VERSION)\\\"
+# ifeq ($(USE_GIT),1)
+#   BASE_BUILD_DEFINES += -DPRODUCT_VERSION_HAS_DATE
+# endif
+
+# BASE_CFLAGS += -DBASEGAME=\\\"$(BASEGAME)\\\"
+# BASE_CFLAGS += -DRENDERER_PREFIX=\\\"$(RENDERER_PREFIX)\\\"
+# BASE_CFLAGS += -Wformat=2 -Wno-format-zero-length -Wformat-security -Wno-format-nonliteral
+# BASE_CFLAGS += -Wstrict-aliasing=2 -Wmissing-format-attribute
+# BASE_CFLAGS += -Wdisabled-optimization
+# BASE_CFLAGS += -Werror-implicit-function-declaration
+
+# ifeq ($(V),1)
+# echo_cmd=@:
+# Q=
+# else
+# echo_cmd=@echo
+# Q=@
+# endif
+
+# define DO_CC
+# $(echo_cmd) "CC $<"
+# $(Q)$(CC) $(NOTSHLIBCFLAGS) $(CFLAGS) $(CLIENT_CFLAGS) $(OPTIMIZE) -o $@ -c $<
+# endef
+
+# define DO_CC_ALTIVEC
+# $(echo_cmd) "CC $<"
+# $(Q)$(CC) $(NOTSHLIBCFLAGS) $(CFLAGS) $(CLIENT_CFLAGS) $(OPTIMIZE) $(ALTIVEC_CFLAGS) -o $@ -c $<
+# endef
+
+# define DO_REF_CC
+# $(echo_cmd) "REF_CC $<"
+# $(Q)$(CC) $(SHLIBCFLAGS) $(CFLAGS) $(CLIENT_CFLAGS) $(OPTIMIZE) -o $@ -c $<
+# endef
+
+# define DO_REF_CC_ALTIVEC
+# $(echo_cmd) "REF_CC $<"
+# $(Q)$(CC) $(SHLIBCFLAGS) $(CFLAGS) $(CLIENT_CFLAGS) $(OPTIMIZE) $(ALTIVEC_CFLAGS) -o $@ -c $<
+# endef
+
+# define DO_REF_STR
+# $(echo_cmd) "REF_STR $<"
+# $(Q)rm -f $@
+# $(Q)$(STRINGIFY) $< $@
+# endef
+
+# define DO_BOT_CC
+# $(echo_cmd) "BOT_CC $<"
+# $(Q)$(CC) $(NOTSHLIBCFLAGS) $(CFLAGS) $(BOTCFLAGS) $(OPTIMIZE) -DBOTLIB -o $@ -c $<
+# endef
+
+# define DO_AS
+# $(echo_cmd) "AS $<"
+# $(Q)$(CC) $(CFLAGS) $(OPTIMIZE) -x assembler-with-cpp -o $@ -c $<
+# endef
+
+# define DO_DED_CC
+# $(echo_cmd) "DED_CC $<"
+# $(Q)$(CC) $(NOTSHLIBCFLAGS) -DDEDICATED $(CFLAGS) $(SERVER_CFLAGS) $(OPTIMIZE) -o $@ -c $<
+# endef
+
+# define DO_WINDRES
+# $(echo_cmd) "WINDRES $<"
+# $(Q)$(WINDRES) -DWIN32_MISC_ICON_PATH -i $< -o $@
+# endef
+
+
+# #############################################################################
+# # MAIN TARGETS
+# #############################################################################
+
+# default: release
+# all: debug release
+
+# debug:
+# 	@$(MAKE) targets B=$(BD) CFLAGS="$(CFLAGS) $(BASE_BUILD_DEFINES) $(BASE_CFLAGS) $(BUILD_DEFINES) $(DEPEND_CFLAGS)" \
+# 	  OPTIMIZE="$(DEBUG_CFLAGS)" OPTIMIZEVM="$(DEBUG_CFLAGS)" \
+# 	  CLIENT_CFLAGS="$(CLIENT_CFLAGS)" SERVER_CFLAGS="$(SERVER_CFLAGS)" V=$(V) \
+# 	  QVM_CFLAGS="$(BASE_BUILD_DEFINES) $(BUILD_DEFINES)"
+
+# release:
+# 	@$(MAKE) targets B=$(BR) CFLAGS="$(CFLAGS) $(BASE_BUILD_DEFINES) $(BASE_CFLAGS) $(BUILD_DEFINES) $(DEPEND_CFLAGS)" \
+# 	  OPTIMIZE="-DNDEBUG $(OPTIMIZE)" OPTIMIZEVM="-DNDEBUG $(OPTIMIZEVM)" \
+# 	  CLIENT_CFLAGS="$(CLIENT_CFLAGS)" SERVER_CFLAGS="$(SERVER_CFLAGS)" V=$(V) \
+# 	  QVM_CFLAGS="-DNDEBUG $(BASE_BUILD_DEFINES) $(BUILD_DEFINES)"
+
+# ifneq ($(call bin_path, tput),)
+#   TERM_COLUMNS=$(shell if c=`tput cols`; then echo $$(($$c-4)); else echo 76; fi)
+# else
+#   TERM_COLUMNS=76
+# endif
+
+# define ADD_COPY_TARGET
+# TARGETS += $2
+# $2: $1
+# 	$(echo_cmd) "CP $$<"
+# 	@cp $1 $2
+# endef
+
+# # These functions allow us to generate rules for copying a list of files
+# # into the base directory of the build; this is useful for bundling libs,
+# # README files or whatever else
+# define GENERATE_COPY_TARGETS
+# $(foreach FILE,$1, \
+#   $(eval $(call ADD_COPY_TARGET, \
+#     $(FILE), \
+#     $(addprefix $(B)/,$(notdir $(FILE))))))
+# endef
+
+# $(call GENERATE_COPY_TARGETS,$(EXTRA_FILES))
+
+# ifneq ($(BUILD_CLIENT),0)
+#   $(call GENERATE_COPY_TARGETS,$(CLIENT_EXTRA_FILES))
+# endif
+
+# NAKED_TARGETS=$(shell echo $(TARGETS) | sed -e "s!$(B)/!!g")
+
+# print_list=-@for i in $(1); \
+#      do \
+#              echo "    $$i"; \
+#      done
+
+# ifneq ($(call bin_path, fmt),)
+#   print_wrapped=@echo $(1) | fmt -w $(TERM_COLUMNS) | sed -e "s/^\(.*\)$$/    \1/"
+# else
+#   print_wrapped=$(print_list)
+# endif
+
+# # Create the build directories, check libraries and print out
+# # an informational message, then start building
+# targets: makedirs
+# 	@echo ""
+# 	@echo "Building in $(B):"
+# 	@echo "  PLATFORM: $(PLATFORM)"
+# 	@echo "  ARCH: $(ARCH)"
+# 	@echo "  VERSION: $(VERSION)"
+# 	@echo "  COMPILE_PLATFORM: $(COMPILE_PLATFORM)"
+# 	@echo "  COMPILE_ARCH: $(COMPILE_ARCH)"
+# 	@echo "  HAVE_VM_COMPILED: $(HAVE_VM_COMPILED)"
+# 	@echo "  PKG_CONFIG: $(PKG_CONFIG)"
+# 	@echo "  CC: $(CC)"
+# ifeq ($(PLATFORM),mingw32)
+# 	@echo "  WINDRES: $(WINDRES)"
+# endif
+# 	@echo ""
+# 	@echo "  CFLAGS:"
+# 	$(call print_wrapped, $(CFLAGS) $(OPTIMIZE))
+# 	@echo ""
+# 	@echo "  CLIENT_CFLAGS:"
+# 	$(call print_wrapped, $(CLIENT_CFLAGS))
+# 	@echo ""
+# 	@echo "  SERVER_CFLAGS:"
+# 	$(call print_wrapped, $(SERVER_CFLAGS))
+# 	@echo ""
+# 	@echo "  TOOLS_CFLAGS:"
+# 	$(call print_wrapped, $(TOOLS_CFLAGS))
+# 	@echo ""
+# 	@echo "  LDFLAGS:"
+# 	$(call print_wrapped, $(LDFLAGS))
+# 	@echo ""
+# 	@echo "  LIBS:"
+# 	$(call print_wrapped, $(LIBS))
+# 	@echo ""
+# 	@echo "  CLIENT_LIBS:"
+# 	$(call print_wrapped, $(CLIENT_LIBS))
+# 	@echo ""
+# 	@echo "  AUTOUPDATER_LIBS:"
+# 	$(call print_wrapped, $(AUTOUPDATER_LIBS))
+# 	@echo ""
+# 	@echo "  Output:"
+# 	$(call print_list, $(NAKED_TARGETS))
+# 	@echo ""
+# ifneq ($(TARGETS),)
+#   ifndef DEBUG_MAKEFILE
+# 	@$(MAKE) $(TARGETS) $(B).zip V=$(V)
+#   endif
+# endif
+
+# $(B).zip: $(TARGETS)
+# ifeq ($(PLATFORM),darwin)
+#   ifdef ARCHIVE
+# 	@("./make-macosx-app.sh" release $(ARCH); if [ "$$?" -eq 0 ] && [ -d "$(B)/$(APPBUNDLE)" ]; then rm -f $@; cd $(B) && zip --symlinks -r9 ../../$@ `find "$(APPBUNDLE)" -print | sed -e "s!$(B)/!!g"`; else rm -f $@; cd $(B) && zip -r9 ../../$@ $(NAKED_TARGETS); fi)
+#   endif
+# endif
+# ifneq ($(PLATFORM),darwin)
+#   ifdef ARCHIVE
+# 	@rm -f $@
+# 	@(cd $(B) && zip -r9 ../../$@ $(NAKED_TARGETS))
+#   endif
+# endif
+
+# makedirs:
+# 	@$(MKDIR) $(B)/autoupdater
+# 	@$(MKDIR) $(B)/client/libmad
+# 	@$(MKDIR) $(B)/client/opus
+# 	@$(MKDIR) $(B)/client/vorbis
+# 	@$(MKDIR) $(B)/renderergl1
+# 	@$(MKDIR) $(B)/renderergl2
+# 	@$(MKDIR) $(B)/renderergl2/glsl
+# 	@$(MKDIR) $(B)/ded
+# 	@$(MKDIR) $(B)/tools
+
+
+# #############################################################################
+# # BUILD TOOLS
+# #############################################################################
+
+# ifndef TOOLS_CC
+#   # A compiler which probably produces native binaries
+#   TOOLS_CC = gcc
+# endif
+
+# TOOLS_OPTIMIZE = -g -Wall -fno-strict-aliasing
+# TOOLS_CFLAGS += $(TOOLS_OPTIMIZE) \
+#                 -DTEMPDIR=\"$(TEMPDIR)\" -DSYSTEM=\"\" \
+#                 -I$(Q3LCCSRCDIR) \
+#                 -I$(LBURGDIR)
+# TOOLS_LIBS =
+# TOOLS_LDFLAGS =
+
+# ifeq ($(GENERATE_DEPENDENCIES),1)
+#   TOOLS_CFLAGS += -MMD
+# endif
+
+# define DO_TOOLS_CC
+# $(echo_cmd) "TOOLS_CC $<"
+# $(Q)$(TOOLS_CC) $(TOOLS_CFLAGS) -o $@ -c $<
+# endef
+
+# STRINGIFY   = $(B)/tools/stringify$(TOOLS_BINEXT)
+
+# $(STRINGIFY): $(TOOLSDIR)/stringify.c
+# 	$(echo_cmd) "TOOLS_CC $@"
+# 	$(Q)$(TOOLS_CC) $(TOOLS_CFLAGS) $(TOOLS_LDFLAGS) -o $@ $(TOOLSDIR)/stringify.c $(TOOLS_LIBS)
+add_executable(stringify code/tools/stringify.c)
+
+# #############################################################################
+# # AUTOUPDATER
+# #############################################################################
+
+# define DO_AUTOUPDATER_CC
+# $(echo_cmd) "AUTOUPDATER_CC $<"
+# $(Q)$(CC) $(CFLAGS) -I$(LIBTOMCRYPTSRCDIR)/src/headers -I$(TOMSFASTMATHSRCDIR)/src/headers $(CURL_CFLAGS) -o $@ -c $<
+# endef
+
+# Q3AUTOUPDATEROBJ = \
+#   $(B)/autoupdater/autoupdater.o
+
+# $(B)/autoupdater/%.o: $(AUTOUPDATERSRCDIR)/%.c
+# 	$(DO_AUTOUPDATER_CC)
+
+# $(B)/$(AUTOUPDATER_BIN): $(Q3AUTOUPDATEROBJ)
+# 	$(echo_cmd) "AUTOUPDATER_LD $@"
+# 	$(Q)$(CC) $(LDFLAGS) -o $@ $(Q3AUTOUPDATEROBJ) $(AUTOUPDATER_LIBS)
+#add_executable(autoupdater code/autoupdater/autoupdater.c)
+#target_link_libraries(autoupdater CURL)
+
+# #############################################################################
+# # CLIENT/SERVER
+# #############################################################################
+
+add_library(botlib OBJECT
+code/botlib/l_memory.c
+code/botlib/l_precomp.c
+code/botlib/l_script.c
+code/botlib/l_struct.c
+)
+target_compile_definitions(botlib PRIVATE BOTLIB)
+target_compile_options(botlib PUBLIC ${SHLIBCFLAGS})
+
+set(Q3OBJ
+   code/client/cl_cgame.c
+   code/client/cl_cin.c
+   code/client/cl_console.c
+   code/client/cl_input.c
+   code/client/cl_joystick.c
+   code/client/cl_keys.c
+   code/client/cl_main.c
+   code/client/cl_net_chan.c
+   code/client/cl_parse.c
+   code/client/cl_scrn.c
+   code/client/cl_avi.c
+   
+   code/qcommon/bsp.c
+   code/qcommon/bsp_q3.c
+   code/qcommon/bsp_q3ihv.c
+   code/qcommon/bsp_q3test103.c
+   code/qcommon/bsp_q3test106.c
+   code/qcommon/bsp_fakk.c
+   code/qcommon/bsp_sof2.c
+   code/qcommon/bsp_ef2.c
+   code/qcommon/bsp_mohaa.c
+   
+   code/qcommon/cm_load.c
+   code/qcommon/cm_patch.c
+   code/qcommon/cm_polylib.c
+   code/qcommon/cm_test.c
+   code/qcommon/cm_trace.c
+   
+   code/qcommon/cmd.c
+   code/qcommon/common.c
+  code/qcommon/cvar.c
+  code/qcommon/files.c
+  code/qcommon/md4.c
+  code/qcommon/md5.c
+  code/qcommon/msg.c
+  code/qcommon/net_chan.c
+  code/qcommon/net_ip.c
+  code/qcommon/huffman.c
+  
+  code/client/snd_altivec.c
+  code/client/snd_adpcm.c
+  code/client/snd_dma.c
+  code/client/snd_mem.c
+  code/client/snd_mix.c
+  code/client/snd_wavelet.c
+  
+  code/client/snd_main.c
+  code/client/snd_codec.c
+  code/client/snd_codec_wav.c
+  code/client/snd_codec_mp3.c
+  code/client/snd_codec_ogg.c
+  code/client/snd_codec_opus.c
+  
+  code/client/qal.c
+  code/client/snd_openal.c
+  
+  code/client/cl_curl.c
+  
+  code/server/sv_bot.c
+  code/server/sv_ccmds.c
+  code/server/sv_client.c
+  code/server/sv_game.c
+  code/server/sv_init.c
+  code/server/sv_main.c
+  code/server/sv_net_chan.c
+  code/server/sv_snapshot.c
+  code/server/sv_world.c
+  
+  code/qcommon/q_math.c
+  code/qcommon/q_shared.c
+  
+  code/qcommon/unzip.c
+  code/qcommon/ioapi.c
+  code/qcommon/puff.c
+  code/qcommon/vm.c
+  code/qcommon/vm_interpreted.c
+  
+  code/sdl/sdl_input.c
+  code/sdl/sdl_snd.c
+  
+  code/sys/con_log.c
+  code/sys/sys_autoupdater.c
+  code/sys/sys_main.c
+)
+
+# ifdef MINGW
+#   Q3OBJ += \
+#     code/client/con_passive.o
+# else
+   list(APPEND Q3OBJ
+     code/sys/con_tty.c)
+# endif
+
+set(Q3R2OBJ
+  code/renderergl2/tr_animation.c
+  code/renderergl2/tr_animation_mds.c
+  code/renderergl2/tr_animation_mdm.c
+  code/renderergl2/tr_backend.c
+  code/renderergl2/tr_bsp.c
+  code/renderergl2/tr_cmds.c
+  code/renderergl2/tr_curve.c
+  code/renderergl2/tr_dsa.c
+  code/renderergl2/tr_extramath.c
+  code/renderergl2/tr_extensions.c
+  code/renderergl2/tr_fbo.c
+  code/renderergl2/tr_flares.c
+  code/renderercommon/tr_font.c
+  code/renderergl2/tr_glsl.c
+  code/renderergl2/tr_image.c
+  code/renderercommon/tr_image_bmp.c
+  code/renderercommon/tr_image_dds.c
+  code/renderercommon/tr_image_ftx.c
+  code/renderercommon/tr_image_jpg.c
+  code/renderercommon/tr_image_pcx.c
+  code/renderercommon/tr_image_png.c
+  code/renderercommon/tr_image_tga.c
+  code/renderergl2/tr_init.c
+  code/renderergl2/tr_light.c
+  code/renderergl2/tr_main.c
+  code/renderergl2/tr_marks.c
+  code/renderergl2/tr_mesh.c
+  code/renderergl2/tr_model.c
+  code/renderergl2/tr_model_iqm.c
+  code/renderercommon/tr_noise.c
+  code/renderergl2/tr_postprocess.c
+  code/renderergl2/tr_scene.c
+  code/renderergl2/tr_shade.c
+  code/renderergl2/tr_shade_calc.c
+  code/renderergl2/tr_shader.c
+  code/renderergl2/tr_shadows.c
+  code/renderergl2/tr_sky.c
+  code/renderergl2/tr_surface.c
+  code/renderergl2/tr_vbo.c
+  code/renderergl2/tr_world.c
+ 
+  code/sdl/sdl_gamma.c
+  code/sdl/sdl_glimp.c
+)
+
+set(Q3R2STRINGSRC
+  code/renderergl2/glsl/bokeh_fp
+  code/renderergl2/glsl/bokeh_vp
+  code/renderergl2/glsl/calclevels4x_fp
+  code/renderergl2/glsl/calclevels4x_vp
+  code/renderergl2/glsl/depthblur_fp
+  code/renderergl2/glsl/depthblur_vp
+  code/renderergl2/glsl/dlight_fp
+  code/renderergl2/glsl/dlight_vp
+  code/renderergl2/glsl/down4x_fp
+  code/renderergl2/glsl/down4x_vp
+  code/renderergl2/glsl/fogpass_fp
+  code/renderergl2/glsl/fogpass_vp
+  code/renderergl2/glsl/generic_fp
+  code/renderergl2/glsl/generic_vp
+  code/renderergl2/glsl/lightall_fp
+  code/renderergl2/glsl/lightall_vp
+  code/renderergl2/glsl/pshadow_fp
+  code/renderergl2/glsl/pshadow_vp
+  code/renderergl2/glsl/shadowfill_fp
+  code/renderergl2/glsl/shadowfill_vp
+  code/renderergl2/glsl/shadowmask_fp
+  code/renderergl2/glsl/shadowmask_vp
+  code/renderergl2/glsl/ssao_fp
+  code/renderergl2/glsl/ssao_vp
+  code/renderergl2/glsl/texturecolor_fp
+  code/renderergl2/glsl/texturecolor_vp
+  code/renderergl2/glsl/tonemap_fp
+  code/renderergl2/glsl/tonemap_vp
+)
+
+set(Q3ROBJ
+  code/renderergl1/tr_altivec.c
+  code/renderergl1/tr_animation.c
+  code/renderergl1/tr_animation_mds.c
+  code/renderergl1/tr_animation_mdm.c
+  code/renderergl1/tr_backend.c
+  code/renderergl1/tr_bsp.c
+  code/renderergl1/tr_cmds.c
+  code/renderergl1/tr_cmesh.c
+  code/renderergl1/tr_curve.c
+  code/renderergl1/tr_flares.c
+  code/renderercommon/tr_font.c
+  code/renderergl1/tr_image.c
+  code/renderercommon/tr_image_bmp.c
+  code/renderercommon/tr_image_dds.c
+  code/renderercommon/tr_image_ftx.c
+  code/renderercommon/tr_image_jpg.c
+  code/renderercommon/tr_image_pcx.c
+  code/renderercommon/tr_image_png.c
+  code/renderercommon/tr_image_tga.c
+  code/renderergl1/tr_init.c
+  code/renderergl1/tr_light.c
+  code/renderergl1/tr_main.c
+  code/renderergl1/tr_marks.c
+  code/renderergl1/tr_mesh.c
+  code/renderergl1/tr_model.c
+  code/renderergl1/tr_model_iqm.c
+  code/renderergl1/tr_model_tan.c
+  code/renderercommon/tr_noise.c
+  code/renderergl1/tr_scene.c
+  code/renderergl1/tr_shade.c
+  code/renderergl1/tr_shade_calc.c
+  code/renderergl1/tr_shader.c
+  code/renderergl1/tr_shadows.c
+  code/renderergl1/tr_sky.c
+  code/renderergl1/tr_surface.c
+  code/renderergl1/tr_world.c
+ 
+  code/sdl/sdl_gamma.c
+  code/sdl/sdl_glimp.c
+)
+
+if(NOT USE_RENDERER_DLOPEN)
+    list(APPEND Q3ROBJ
+     code/renderergl1/q_shared.c
+     code/renderergl1/puff.c
+     code/renderergl1/q_math.c
+     code/renderergl1/tr_subs.c)
+
+   list(APPEND Q3R2OBJ
+     code/renderergl1/q_shared.c
+     code/renderergl1/puff.c
+     code/renderergl1/q_math.c
+     code/renderergl1/tr_subs.c)
+endif()
+
+# ifneq ($(USE_INTERNAL_JPEG),0)
+#   JPGOBJ = \
+#     $(B)/renderergl1/jaricom.o \
+#     $(B)/renderergl1/jcapimin.o \
+#     $(B)/renderergl1/jcapistd.o \
+#     $(B)/renderergl1/jcarith.o \
+#     $(B)/renderergl1/jccoefct.o  \
+#     $(B)/renderergl1/jccolor.o \
+#     $(B)/renderergl1/jcdctmgr.o \
+#     $(B)/renderergl1/jchuff.o   \
+#     $(B)/renderergl1/jcinit.o \
+#     $(B)/renderergl1/jcmainct.o \
+#     $(B)/renderergl1/jcmarker.o \
+#     $(B)/renderergl1/jcmaster.o \
+#     $(B)/renderergl1/jcomapi.o \
+#     $(B)/renderergl1/jcparam.o \
+#     $(B)/renderergl1/jcprepct.o \
+#     $(B)/renderergl1/jcsample.o \
+#     $(B)/renderergl1/jctrans.o \
+#     $(B)/renderergl1/jdapimin.o \
+#     $(B)/renderergl1/jdapistd.o \
+#     $(B)/renderergl1/jdarith.o \
+#     $(B)/renderergl1/jdatadst.o \
+#     $(B)/renderergl1/jdatasrc.o \
+#     $(B)/renderergl1/jdcoefct.o \
+#     $(B)/renderergl1/jdcolor.o \
+#     $(B)/renderergl1/jddctmgr.o \
+#     $(B)/renderergl1/jdhuff.o \
+#     $(B)/renderergl1/jdinput.o \
+#     $(B)/renderergl1/jdmainct.o \
+#     $(B)/renderergl1/jdmarker.o \
+#     $(B)/renderergl1/jdmaster.o \
+#     $(B)/renderergl1/jdmerge.o \
+#     $(B)/renderergl1/jdpostct.o \
+#     $(B)/renderergl1/jdsample.o \
+#     $(B)/renderergl1/jdtrans.o \
+#     $(B)/renderergl1/jerror.o \
+#     $(B)/renderergl1/jfdctflt.o \
+#     $(B)/renderergl1/jfdctfst.o \
+#     $(B)/renderergl1/jfdctint.o \
+#     $(B)/renderergl1/jidctflt.o \
+#     $(B)/renderergl1/jidctfst.o \
+#     $(B)/renderergl1/jidctint.o \
+#     $(B)/renderergl1/jmemmgr.o \
+#     $(B)/renderergl1/jmemnobs.o \
+#     $(B)/renderergl1/jquant1.o \
+#     $(B)/renderergl1/jquant2.o \
+#     $(B)/renderergl1/jutils.o
+# endif
+
+# ifeq ($(USE_FREETYPE),1)
+# ifneq ($(USE_INTERNAL_FREETYPE),0)
+#   FTOBJ += \
+#     $(B)/renderergl1/ftbase.o \
+#     $(B)/renderergl1/ftbitmap.o \
+#     $(B)/renderergl1/ftfntfmt.o \
+#     $(B)/renderergl1/ftglyph.o \
+#     $(B)/renderergl1/ftinit.o \
+#     $(B)/renderergl1/ftlcdfil.o \
+#     $(B)/renderergl1/ftstroke.o \
+#     $(B)/renderergl1/ftsystem.o \
+# 	\
+#     $(B)/renderergl1/ftbzip2.o \
+#     $(B)/renderergl1/ftgzip.o \
+#     $(B)/renderergl1/ftlzw.o \
+# 	\
+#     $(B)/renderergl1/autofit.o \
+#     $(B)/renderergl1/bdf.o \
+#     $(B)/renderergl1/cff.o \
+#     $(B)/renderergl1/pcf.o \
+#     $(B)/renderergl1/pfr.o \
+#     $(B)/renderergl1/psaux.o \
+#     $(B)/renderergl1/pshinter.o \
+#     $(B)/renderergl1/psnames.o \
+#     $(B)/renderergl1/raster.o \
+#     $(B)/renderergl1/sfnt.o \
+#     $(B)/renderergl1/smooth.o \
+#     $(B)/renderergl1/truetype.o \
+#     $(B)/renderergl1/type1.o \
+#     $(B)/renderergl1/type1cid.o \
+#     $(B)/renderergl1/type42.o \
+#     $(B)/renderergl1/winfnt.o
+# endif
+# endif
+
+if("${ARCH}" MATCHES x86)
+    list(APPEND Q3OBJ
+     code/asm/snd_mixa.s
+     code/asm/matha.s
+     code/asm/snapvector.c
+     code/asm/ftola.c)
+elseif("${ARCH}" MATCHES x86_64)
+    list(APPEND Q3OBJ
+     code/client/snapvector.c
+     code/client/ftola.c)
+endif()
+
+# ifeq ($(USE_CODEC_MP3),1)
+# ifeq ($(USE_INTERNAL_MP3),1)
+# Q3OBJ += \
+#   $(B)/client/libmad/bit.o \
+#   $(B)/client/libmad/decoder.o \
+#   $(B)/client/libmad/fixed.o \
+#   $(B)/client/libmad/frame.o \
+#   $(B)/client/libmad/huffman.o \
+#   $(B)/client/libmad/layer3.o \
+#   $(B)/client/libmad/layer12.o \
+#   $(B)/client/libmad/stream.o \
+#   $(B)/client/libmad/synth.o \
+#   $(B)/client/libmad/timer.o \
+#   $(B)/client/libmad/version.o
+# endif
+# endif
+
+# ifeq ($(NEED_OPUS),1)
+# ifeq ($(USE_INTERNAL_OPUS),1)
+# Q3OBJ += \
+#   $(B)/client/opus/analysis.o \
+#   $(B)/client/opus/mlp.o \
+#   $(B)/client/opus/mlp_data.o \
+#   $(B)/client/opus/opus.o \
+#   $(B)/client/opus/opus_decoder.o \
+#   $(B)/client/opus/opus_encoder.o \
+#   $(B)/client/opus/opus_multistream.o \
+#   $(B)/client/opus/opus_multistream_encoder.o \
+#   $(B)/client/opus/opus_multistream_decoder.o \
+#   $(B)/client/opus/repacketizer.o \
+#   \
+#   $(B)/client/opus/bands.o \
+#   $(B)/client/opus/celt.o \
+#   $(B)/client/opus/cwrs.o \
+#   $(B)/client/opus/entcode.o \
+#   $(B)/client/opus/entdec.o \
+#   $(B)/client/opus/entenc.o \
+#   $(B)/client/opus/kiss_fft.o \
+#   $(B)/client/opus/laplace.o \
+#   $(B)/client/opus/mathops.o \
+#   $(B)/client/opus/mdct.o \
+#   $(B)/client/opus/modes.o \
+#   $(B)/client/opus/pitch.o \
+#   $(B)/client/opus/celt_encoder.o \
+#   $(B)/client/opus/celt_decoder.o \
+#   $(B)/client/opus/celt_lpc.o \
+#   $(B)/client/opus/quant_bands.o \
+#   $(B)/client/opus/rate.o \
+#   $(B)/client/opus/vq.o \
+#   \
+#   $(B)/client/opus/CNG.o \
+#   $(B)/client/opus/code_signs.o \
+#   $(B)/client/opus/init_decoder.o \
+#   $(B)/client/opus/decode_core.o \
+#   $(B)/client/opus/decode_frame.o \
+#   $(B)/client/opus/decode_parameters.o \
+#   $(B)/client/opus/decode_indices.o \
+#   $(B)/client/opus/decode_pulses.o \
+#   $(B)/client/opus/decoder_set_fs.o \
+#   $(B)/client/opus/dec_API.o \
+#   $(B)/client/opus/enc_API.o \
+#   $(B)/client/opus/encode_indices.o \
+#   $(B)/client/opus/encode_pulses.o \
+#   $(B)/client/opus/gain_quant.o \
+#   $(B)/client/opus/interpolate.o \
+#   $(B)/client/opus/LP_variable_cutoff.o \
+#   $(B)/client/opus/NLSF_decode.o \
+#   $(B)/client/opus/NSQ.o \
+#   $(B)/client/opus/NSQ_del_dec.o \
+#   $(B)/client/opus/PLC.o \
+#   $(B)/client/opus/shell_coder.o \
+#   $(B)/client/opus/tables_gain.o \
+#   $(B)/client/opus/tables_LTP.o \
+#   $(B)/client/opus/tables_NLSF_CB_NB_MB.o \
+#   $(B)/client/opus/tables_NLSF_CB_WB.o \
+#   $(B)/client/opus/tables_other.o \
+#   $(B)/client/opus/tables_pitch_lag.o \
+#   $(B)/client/opus/tables_pulses_per_block.o \
+#   $(B)/client/opus/VAD.o \
+#   $(B)/client/opus/control_audio_bandwidth.o \
+#   $(B)/client/opus/quant_LTP_gains.o \
+#   $(B)/client/opus/VQ_WMat_EC.o \
+#   $(B)/client/opus/HP_variable_cutoff.o \
+#   $(B)/client/opus/NLSF_encode.o \
+#   $(B)/client/opus/NLSF_VQ.o \
+#   $(B)/client/opus/NLSF_unpack.o \
+#   $(B)/client/opus/NLSF_del_dec_quant.o \
+#   $(B)/client/opus/process_NLSFs.o \
+#   $(B)/client/opus/stereo_LR_to_MS.o \
+#   $(B)/client/opus/stereo_MS_to_LR.o \
+#   $(B)/client/opus/check_control_input.o \
+#   $(B)/client/opus/control_SNR.o \
+#   $(B)/client/opus/init_encoder.o \
+#   $(B)/client/opus/control_codec.o \
+#   $(B)/client/opus/A2NLSF.o \
+#   $(B)/client/opus/ana_filt_bank_1.o \
+#   $(B)/client/opus/biquad_alt.o \
+#   $(B)/client/opus/bwexpander_32.o \
+#   $(B)/client/opus/bwexpander.o \
+#   $(B)/client/opus/debug.o \
+#   $(B)/client/opus/decode_pitch.o \
+#   $(B)/client/opus/inner_prod_aligned.o \
+#   $(B)/client/opus/lin2log.o \
+#   $(B)/client/opus/log2lin.o \
+#   $(B)/client/opus/LPC_analysis_filter.o \
+#   $(B)/client/opus/LPC_fit.o \
+#   $(B)/client/opus/LPC_inv_pred_gain.o \
+#   $(B)/client/opus/table_LSF_cos.o \
+#   $(B)/client/opus/NLSF2A.o \
+#   $(B)/client/opus/NLSF_stabilize.o \
+#   $(B)/client/opus/NLSF_VQ_weights_laroia.o \
+#   $(B)/client/opus/pitch_est_tables.o \
+#   $(B)/client/opus/resampler.o \
+#   $(B)/client/opus/resampler_down2_3.o \
+#   $(B)/client/opus/resampler_down2.o \
+#   $(B)/client/opus/resampler_private_AR2.o \
+#   $(B)/client/opus/resampler_private_down_FIR.o \
+#   $(B)/client/opus/resampler_private_IIR_FIR.o \
+#   $(B)/client/opus/resampler_private_up2_HQ.o \
+#   $(B)/client/opus/resampler_rom.o \
+#   $(B)/client/opus/sigm_Q15.o \
+#   $(B)/client/opus/sort.o \
+#   $(B)/client/opus/sum_sqr_shift.o \
+#   $(B)/client/opus/stereo_decode_pred.o \
+#   $(B)/client/opus/stereo_encode_pred.o \
+#   $(B)/client/opus/stereo_find_predictor.o \
+#   $(B)/client/opus/stereo_quant_pred.o \
+#   \
+#   $(B)/client/opus/apply_sine_window_FLP.o \
+#   $(B)/client/opus/corrMatrix_FLP.o \
+#   $(B)/client/opus/encode_frame_FLP.o \
+#   $(B)/client/opus/find_LPC_FLP.o \
+#   $(B)/client/opus/find_LTP_FLP.o \
+#   $(B)/client/opus/find_pitch_lags_FLP.o \
+#   $(B)/client/opus/find_pred_coefs_FLP.o \
+#   $(B)/client/opus/LPC_analysis_filter_FLP.o \
+#   $(B)/client/opus/LTP_analysis_filter_FLP.o \
+#   $(B)/client/opus/LTP_scale_ctrl_FLP.o \
+#   $(B)/client/opus/noise_shape_analysis_FLP.o \
+#   $(B)/client/opus/process_gains_FLP.o \
+#   $(B)/client/opus/regularize_correlations_FLP.o \
+#   $(B)/client/opus/residual_energy_FLP.o \
+#   $(B)/client/opus/warped_autocorrelation_FLP.o \
+#   $(B)/client/opus/wrappers_FLP.o \
+#   $(B)/client/opus/autocorrelation_FLP.o \
+#   $(B)/client/opus/burg_modified_FLP.o \
+#   $(B)/client/opus/bwexpander_FLP.o \
+#   $(B)/client/opus/energy_FLP.o \
+#   $(B)/client/opus/inner_product_FLP.o \
+#   $(B)/client/opus/k2a_FLP.o \
+#   $(B)/client/opus/LPC_inv_pred_gain_FLP.o \
+#   $(B)/client/opus/pitch_analysis_core_FLP.o \
+#   $(B)/client/opus/scale_copy_vector_FLP.o \
+#   $(B)/client/opus/scale_vector_FLP.o \
+#   $(B)/client/opus/schur_FLP.o \
+#   $(B)/client/opus/sort_FLP.o \
+#   \
+#   $(B)/client/http.o \
+#   $(B)/client/info.o \
+#   $(B)/client/internal.o \
+#   $(B)/client/opusfile.o \
+#   $(B)/client/stream.o \
+#   $(B)/client/wincerts.o
+# endif
+# endif
+
+# ifeq ($(NEED_OGG),1)
+# ifeq ($(USE_INTERNAL_OGG),1)
+# Q3OBJ += \
+#   $(B)/client/bitwise.o \
+#   $(B)/client/framing.o
+# endif
+# endif
+
+# ifeq ($(USE_CODEC_VORBIS),1)
+# ifeq ($(USE_INTERNAL_VORBIS),1)
+# Q3OBJ += \
+#   $(B)/client/vorbis/analysis.o \
+#   $(B)/client/vorbis/bitrate.o \
+#   $(B)/client/vorbis/block.o \
+#   $(B)/client/vorbis/codebook.o \
+#   $(B)/client/vorbis/envelope.o \
+#   $(B)/client/vorbis/floor0.o \
+#   $(B)/client/vorbis/floor1.o \
+#   $(B)/client/vorbis/info.o \
+#   $(B)/client/vorbis/lookup.o \
+#   $(B)/client/vorbis/lpc.o \
+#   $(B)/client/vorbis/lsp.o \
+#   $(B)/client/vorbis/mapping0.o \
+#   $(B)/client/vorbis/mdct.o \
+#   $(B)/client/vorbis/psy.o \
+#   $(B)/client/vorbis/registry.o \
+#   $(B)/client/vorbis/res0.o \
+#   $(B)/client/vorbis/smallft.o \
+#   $(B)/client/vorbis/sharedbook.o \
+#   $(B)/client/vorbis/synthesis.o \
+#   $(B)/client/vorbis/vorbisfile.o \
+#   $(B)/client/vorbis/window.o
+# endif
+# endif
+
+# ifeq ($(USE_INTERNAL_ZLIB),1)
+# Q3OBJ += \
+#   $(B)/client/adler32.o \
+#   $(B)/client/compress.o \
+#   $(B)/client/crc32.o \
+#   $(B)/client/deflate.o \
+#   $(B)/client/inffast.o \
+#   $(B)/client/inflate.o \
+#   $(B)/client/inftrees.o \
+#   $(B)/client/trees.o \
+#   $(B)/client/zutil.o
+# endif
+
+if(HAVE_VM_COMPILED)
+  if(NOT "${ARCH}" MATCHES "x86|x86_64")
+    list(APPEND Q3OBJ
+      code/client/vm_x86.c)
+  endif()
+  if(NOT "${ARCH}" MATCHES "ppc|ppc64")
+    list(APPEND Q3OBJ code/qcommon/vm_powerpc.c code/qcommon/vm_powerpc_asm.c)
+  endif()
+  if("${ARCH}" MATCHES "sparc")
+    list(APPEND Q3OBJ code/qcommon/vm_sparc.c)
+  endif()
+  if("${ARCH}" MATCHES "armv7l")
+    list(APPEND Q3OBJ code/qcommon/vm_armv7l.c)
+  endif()
+endif()
+
+if(MINGW)
+   list(APPEND Q3OBJ
+     code/client/win_resource.c
+     code/client/sys_win32.c)
+else()
+   list(APPEND Q3OBJ
+     code/sys/sys_unix.c)
+endif()
+
+if("${PLATFORM}" MATCHES darwin)
+   list(APPEND Q3OBJ
+     code/client/sys_osx.c)
+endif()
+
+# ifeq ($(USE_MUMBLE),1)
+#   Q3OBJ += \
+#     $(B)/client/libmumblelink.o
+# endif
+
+foreach(shader ${Q3R2STRINGSRC})
+    get_filename_component(outshader "${shader}" NAME)
+    add_custom_command(OUTPUT "${outshader}.c"
+        DEPENDS stringify "${shader}.glsl"
+        COMMAND stringify "../${shader}.glsl" "${outshader}.c")
+
+    list(APPEND Q3R2STRINGC "${outshader}.c")
+endforeach()
+add_custom_target(Q3R2STRINGOBJ ALL
+    DEPENDS ${Q3R2STRINGC})
+
+if(NOT USE_RENDERER_DLOPEN)
+    include_directories("${CLIENTBIN}${FULLBINEXT}" ${SDL2_INCLUDE_DIRS})
+    add_executable("${CLIENTBIN}${FULLBINEXT}" ${Q3OBJ} ${LIBSDLMAIN})
+        #$(echo_cmd) "LD $@"
+        #$(Q)$(CC) $(CLIENT_CFLAGS) $(CFLAGS) $(CLIENT_LDFLAGS) $(LDFLAGS) $(NOTSHLIBLDFLAGS) \
+            #-o $@ $(Q3OBJ) \
+            #$(LIBSDLMAIN) $(CLIENT_LIBS) $(LIBS)
+    target_link_libraries("${CLIENTBIN}${FULLBINEXT}" ${SDL2_LIBRARIES} botlib m)
+    if(USE_INTERNAL_ZLIB)
+        ADD_LIBRARY("${CLIENTBIN}${FULLBINEXT}" OBJECT ${ZLIB_SRCS})
+    else()
+        TARGET_LINK_LIBRARIES("${CLIENTBIN}${FULLBINEXT}" ${ZLIB_LIBRARIES})
+    endif()
+    if(USE_INTERNAL_JPEG)
+        TARGET_COMPILE_DEFINITIONS("${CLIENTBIN}${FULLBINEXT}" PRIVATE -DUSE_INTERNAL_JPEG)
+        ADD_LIBRARY("${CLIENTBIN}${FULLBINEXT}" OBJECT ${JPEG_SRCS})
+    else()
+        TARGET_LINK_LIBRARIES("${CLIENTBIN}${FULLBINEXT}" ${JPEG_LIBRARIES})
+    endif()
+    if(NOT ${HAVE_VM_COMPILED})
+        TARGET_COMPILE_DEFINITIONS("${CLIENTBIN}${FULLBINEXT}" PRIVATE -DNO_VM_COMPILED)
+    endif()
+
+    add_library("${RENDERER_PREFIX}opengl1_${SHLIBNAME}" ${Q3ROBJ} ${FTOBJ})
+
+    if(USE_INTERNAL_JPEG)
+        TARGET_COMPILE_DEFINITIONS("${RENDERER_PREFIX}opengl1_${SHLIBNAME}" PRIVATE -DUSE_INTERNAL_JPEG)
+        ADD_LIBRARY("${RENDERER_PREFIX}opengl1_${SHLIBNAME}" OBJECT ${JPEG_SRCS})
+    else()
+        TARGET_LINK_LIBRARIES("${RENDERER_PREFIX}opengl1_${SHLIBNAME}" ${JPEG_LIBRARIES})
+    endif()
+    
+    #$(echo_cmd) "LD $@"
+	#$(Q)$(CC) $(CFLAGS) $(SHLIBLDFLAGS) -o $@ $(Q3ROBJ) $(JPGOBJ) $(FTOBJ) \
+	#	$(THREAD_LIBS) $(LIBSDLMAIN) $(RENDERER_LIBS) $(LIBS)
+
+    add_library("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" ${Q3R2OBJ} ${Q3R2STRINGOBJ} ${Q3R2STRINGC} ${JPEG_SRCS} ${FTOBJ})
+	#$(echo_cmd) "LD $@"
+	#$(Q)$(CC) $(CFLAGS) $(SHLIBLDFLAGS) -o $@ $(Q3R2OBJ) $(Q3R2STRINGOBJ) $(JPGOBJ) $(FTOBJ) \
+		#$(THREAD_LIBS) $(LIBSDLMAIN) $(RENDERER_LIBS) $(LIBS)
+
+    if(USE_INTERNAL_JPEG)
+        TARGET_COMPILE_DEFINITIONS("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PRIVATE -DUSE_INTERNAL_JPEG)
+        ADD_LIBRARY("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" OBJECT ${JPEG_SRCS})
+    else()
+        TARGET_LINK_LIBRARIES("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" ${JPEG_LIBRARIES})
+    endif()
+
+else()
+
+    include_directories("${CLIENTBIN}${FULLBINEXT}" ${SDL2_INCLUDE_DIRS} botlib)
+    add_executable("${CLIENTBIN}${FULLBINEXT}" ${Q3OBJ} ${Q3ROBJ} ${JPEG_SRCS} ${FTOBJ} ${LIBSDLMAIN})
+        #$(echo_cmd) "LD $@"
+        #$(Q)$(CC) $(CLIENT_CFLAGS) $(CFLAGS) $(CLIENT_LDFLAGS) $(LDFLAGS) $(NOTSHLIBLDFLAGS) \
+            #-o $@ $(Q3OBJ) $(Q3ROBJ) $(JPGOBJ) $(FTOBJ) \
+            #$(LIBSDLMAIN) $(CLIENT_LIBS) $(RENDERER_LIBS) $(LIBS)
+    target_link_libraries("${CLIENTBIN}${FULLBINEXT}" ${SDL2_LIBRARIES} botlib m)
+    if(USE_INTERNAL_ZLIB)
+        ADD_LIBRARY("${CLIENTBIN}${FULLBINEXT}" OBJECT ${ZLIB_SRCS})
+    else()
+        TARGET_LINK_LIBRARIES("${CLIENTBIN}${FULLBINEXT}" ${ZLIB_LIBRARIES})
+    endif()
+    if(USE_INTERNAL_JPEG)
+        target_include_directories("${CLIENTBIN}${FULLBINEXT}" PRIVATE code/jpeg-8c)
+        TARGET_COMPILE_DEFINITIONS("${CLIENTBIN}${FULLBINEXT}" PRIVATE -DUSE_INTERNAL_JPEG)
+    else()
+        TARGET_LINK_LIBRARIES("${CLIENTBIN}${FULLBINEXT}" ${JPEG_LIBRARIES})
+    endif()
+    if(NOT ${HAVE_VM_COMPILED})
+        TARGET_COMPILE_DEFINITIONS("${CLIENTBIN}${FULLBINEXT}" PRIVATE -DNO_VM_COMPILED)
+    endif()
+    TARGET_COMPILE_DEFINITIONS("${CLIENTBIN}${FULLBINEXT}" PRIVATE -DUSE_RENDERER_DLOPEN)
+
+    include_directories("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" ${SDL2_INCLUDE_DIRS})
+    add_library("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" SHARED ${Q3OBJ} ${Q3R2OBJ} ${Q3R2STRINGOBJ} ${Q3R2STRINGC} ${JPEG_SRCS} ${FTOBJ} ${LIBSDLMAIN})
+    set_target_properties("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PROPERTIES PREFIX "")
+    target_link_libraries("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" ${SDL2_LIBRARIES} botlib m)
+    target_compile_options("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PUBLIC ${SHLIBCFLAGS})
+    target_compile_definitions("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PRIVATE -DUSE_RENDERER_DLOPEN)
+    if(USE_INTERNAL_JPEG)
+        target_include_directories("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PRIVATE code/jpeg-8c)
+        TARGET_COMPILE_DEFINITIONS("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" PRIVATE -DUSE_INTERNAL_JPEG)
+    else()
+        TARGET_LINK_LIBRARIES("${RENDERER_PREFIX}opengl2_${SHLIBNAME}" ${JPEG_LIBRARIES})
+    endif()
+
+        #$(echo_cmd) "LD $@"
+        #$(Q)$(CC) $(CLIENT_CFLAGS) $(CFLAGS) $(CLIENT_LDFLAGS) $(LDFLAGS) $(NOTSHLIBLDFLAGS) \
+        #    -o $@ $(Q3OBJ) $(Q3R2OBJ) $(Q3R2STRINGOBJ) $(JPGOBJ) $(FTOBJ) \
+        #    $(LIBSDLMAIN) $(CLIENT_LIBS) $(RENDERER_LIBS) $(LIBS)
+endif()
+
+#ifneq ($(strip $(LIBSDLMAIN)),)
+#ifneq ($(strip $(LIBSDLMAINSRC)),)
+#$(LIBSDLMAIN) : $(LIBSDLMAINSRC)
+#ifeq ($(PLATFORM),darwin)
+#	$(LIPO) -extract $(MACOSX_ARCH) $< -o $@
+#else
+#	cp $< $@
+#endif
+#	$(RANLIB) $@
+#endif
+#endif
+
+
+
+# #############################################################################
+# # DEDICATED SERVER
+# #############################################################################
+
+# Q3DOBJ = \
+#   $(B)/ded/sv_bot.o \
+#   $(B)/ded/sv_client.o \
+#   $(B)/ded/sv_ccmds.o \
+#   $(B)/ded/sv_game.o \
+#   $(B)/ded/sv_init.o \
+#   $(B)/ded/sv_main.o \
+#   $(B)/ded/sv_net_chan.o \
+#   $(B)/ded/sv_snapshot.o \
+#   $(B)/ded/sv_world.o \
+#   \
+#   $(B)/ded/bsp.o \
+#   $(B)/ded/bsp_q3.o \
+#   $(B)/ded/bsp_q3ihv.o \
+#   $(B)/ded/bsp_q3test103.o \
+#   $(B)/ded/bsp_q3test106.o \
+#   $(B)/ded/bsp_fakk.o \
+#   $(B)/ded/bsp_sof2.o \
+#   $(B)/ded/bsp_ef2.o \
+#   $(B)/ded/bsp_mohaa.o \
+#   \
+#   $(B)/ded/cm_load.o \
+#   $(B)/ded/cm_patch.o \
+#   $(B)/ded/cm_polylib.o \
+#   $(B)/ded/cm_test.o \
+#   $(B)/ded/cm_trace.o \
+#   $(B)/ded/cmd.o \
+#   $(B)/ded/common.o \
+#   $(B)/ded/cvar.o \
+#   $(B)/ded/files.o \
+#   $(B)/ded/md4.o \
+#   $(B)/ded/msg.o \
+#   $(B)/ded/net_chan.o \
+#   $(B)/ded/net_ip.o \
+#   $(B)/ded/huffman.o \
+#   \
+#   $(B)/ded/q_math.o \
+#   $(B)/ded/q_shared.o \
+#   \
+#   $(B)/ded/unzip.o \
+#   $(B)/ded/ioapi.o \
+#   $(B)/ded/vm.o \
+#   $(B)/ded/vm_interpreted.o \
+#   \
+#   $(B)/ded/l_memory.o \
+#   $(B)/ded/l_precomp.o \
+#   $(B)/ded/l_script.o \
+#   $(B)/ded/l_struct.o \
+#   \
+#   $(B)/ded/null_client.o \
+#   $(B)/ded/null_input.o \
+#   $(B)/ded/null_snddma.o \
+#   \
+#   $(B)/ded/con_log.o \
+#   $(B)/ded/sys_autoupdater.o \
+#   $(B)/ded/sys_main.o
+
+# ifneq ($(SERVER_USE_RENDERER_DLOPEN),1)
+#   Q3DOBJ += \
+#     $(B)/ded/sv_ref.o \
+#     $(B)/ded/tr_animation_mds.o \
+#     $(B)/ded/tr_animation_mdm.o \
+#     $(B)/ded/tr_model.o \
+#     $(B)/ded/tr_model_iqm.o
+# endif
+
+# ifeq ($(ARCH),x86)
+#   Q3DOBJ += \
+#       $(B)/ded/matha.o \
+#       $(B)/ded/snapvector.o \
+#       $(B)/ded/ftola.o
+# endif
+# ifeq ($(ARCH),x86_64)
+#   Q3DOBJ += \
+#       $(B)/ded/snapvector.o \
+#       $(B)/ded/ftola.o
+# endif
+
+# ifeq ($(USE_INTERNAL_ZLIB),1)
+# Q3DOBJ += \
+#   $(B)/ded/adler32.o \
+#   $(B)/ded/crc32.o \
+#   $(B)/ded/inffast.o \
+#   $(B)/ded/inflate.o \
+#   $(B)/ded/inftrees.o \
+#   $(B)/ded/zutil.o
+# endif
+
+# ifeq ($(HAVE_VM_COMPILED),true)
+#   ifneq ($(findstring $(ARCH),x86 x86_64),)
+#     Q3DOBJ += \
+#       $(B)/ded/vm_x86.o
+#   endif
+#   ifneq ($(findstring $(ARCH),ppc ppc64),)
+#     Q3DOBJ += $(B)/ded/vm_powerpc.o $(B)/ded/vm_powerpc_asm.o
+#   endif
+#   ifeq ($(ARCH),sparc)
+#     Q3DOBJ += $(B)/ded/vm_sparc.o
+#   endif
+#   ifeq ($(ARCH),armv7l)
+#     Q3DOBJ += $(B)/client/vm_armv7l.o
+#   endif
+# endif
+
+# ifdef MINGW
+#   Q3DOBJ += \
+#     $(B)/ded/win_resource.o \
+#     $(B)/ded/sys_win32.o \
+#     $(B)/ded/con_win32.o
+# else
+#   Q3DOBJ += \
+#     $(B)/ded/sys_unix.o \
+#     $(B)/ded/con_tty.o
+# endif
+
+# ifeq ($(PLATFORM),darwin)
+#   Q3DOBJ += \
+#     $(B)/ded/sys_osx.o
+# endif
+
+# $(B)/$(SERVERBIN)$(FULLBINEXT): $(Q3DOBJ)
+# 	$(echo_cmd) "LD $@"
+# 	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $(NOTSHLIBLDFLAGS) -o $@ $(Q3DOBJ) $(LIBS)
+
+
+
+# #############################################################################
+# ## CLIENT/SERVER RULES
+# #############################################################################
+
+# $(B)/client/%.o: $(ASMDIR)/%.s
+# 	$(DO_AS)
+
+# # k8 so inline assembler knows about SSE
+# $(B)/client/%.o: $(ASMDIR)/%.c
+# 	$(DO_CC) -march=k8
+
+# $(B)/client/snd_altivec.o: $(CDIR)/snd_altivec.c
+# 	$(DO_CC_ALTIVEC)
+
+# $(B)/client/%.o: $(CDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(SDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(CMDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(BLIBDIR)/%.c
+# 	$(DO_BOT_CC)
+
+# $(B)/client/%.o: $(OGGDIR)/src/%.c
+# 	$(DO_CC)
+
+# $(B)/client/libmad/%.o: $(MADDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/vorbis/%.o: $(VORBISDIR)/lib/%.c
+# 	$(DO_CC)
+
+# $(B)/client/opus/%.o: $(OPUSDIR)/src/%.c
+# 	$(DO_CC)
+
+# $(B)/client/opus/%.o: $(OPUSDIR)/celt/%.c
+# 	$(DO_CC)
+
+# $(B)/client/opus/%.o: $(OPUSDIR)/silk/%.c
+# 	$(DO_CC)
+
+# $(B)/client/opus/%.o: $(OPUSDIR)/silk/float/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(OPUSFILEDIR)/src/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(ZDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(SDLDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(SYSDIR)/%.c
+# 	$(DO_CC)
+
+# $(B)/client/%.o: $(SYSDIR)/%.m
+# 	$(DO_CC)
+
+# $(B)/client/win_resource.o: $(SYSDIR)/win_resource.rc $(SYSDIR)/win_manifest.xml
+# 	$(DO_WINDRES)
+
+
+# $(B)/renderergl1/%.o: $(CMDIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/%.o: $(SDLDIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/%.o: $(JPDIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/%.o: $(RCOMMONDIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/%.o: $(RGL1DIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/tr_altivec.o: $(RGL1DIR)/tr_altivec.c
+# 	$(DO_REF_CC_ALTIVEC)
+
+# $(B)/renderergl2/glsl/%.c: $(RGL2DIR)/glsl/%.glsl $(STRINGIFY)
+# 	$(DO_REF_STR)
+
+# $(B)/renderergl2/glsl/%.o: $(B)/renderergl2/glsl/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl2/%.o: $(RCOMMONDIR)/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl2/%.o: $(RGL2DIR)/%.c
+# 	$(DO_REF_CC)
+
+
+# $(B)/renderergl1/%.o: $(FTDIR)/src/base/%.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/ftbzip2.o: $(FTDIR)/src/bzip2/ftbzip2.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/ftgzip.o: $(FTDIR)/src/gzip/ftgzip.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/ftlzw.o: $(FTDIR)/src/lzw/ftlzw.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/autofit.o: $(FTDIR)/src/autofit/autofit.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/bdf.o: $(FTDIR)/src/bdf/bdf.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/cff.o: $(FTDIR)/src/cff/cff.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/pcf.o: $(FTDIR)/src/pcf/pcf.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/pfr.o: $(FTDIR)/src/pfr/pfr.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/psaux.o: $(FTDIR)/src/psaux/psaux.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/pshinter.o: $(FTDIR)/src/pshinter/pshinter.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/psnames.o: $(FTDIR)/src/psnames/psnames.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/raster.o: $(FTDIR)/src/raster/raster.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/sfnt.o: $(FTDIR)/src/sfnt/sfnt.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/smooth.o: $(FTDIR)/src/smooth/smooth.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/truetype.o: $(FTDIR)/src/truetype/truetype.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/type1.o: $(FTDIR)/src/type1/type1.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/type1cid.o: $(FTDIR)/src/cid/type1cid.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/type42.o: $(FTDIR)/src/type42/type42.c
+# 	$(DO_REF_CC)
+
+# $(B)/renderergl1/winfnt.o: $(FTDIR)/src/winfonts/winfnt.c
+# 	$(DO_REF_CC)
+
+
+# $(B)/ded/%.o: $(ASMDIR)/%.s
+# 	$(DO_AS)
+
+# # k8 so inline assembler knows about SSE
+# $(B)/ded/%.o: $(ASMDIR)/%.c
+# 	$(DO_CC) -march=k8
+
+# $(B)/ded/%.o: $(SDIR)/%.c
+# 	$(DO_DED_CC)
+
+# $(B)/ded/%.o: $(CMDIR)/%.c
+# 	$(DO_DED_CC)
+
+# $(B)/ded/%.o: $(ZDIR)/%.c
+# 	$(DO_DED_CC)
+
+# $(B)/ded/%.o: $(BLIBDIR)/%.c
+# 	$(DO_BOT_CC)
+
+# $(B)/ded/%.o: $(SYSDIR)/%.c
+# 	$(DO_DED_CC)
+
+# $(B)/ded/%.o: $(SYSDIR)/%.m
+# 	$(DO_DED_CC)
+
+# $(B)/ded/win_resource.o: $(SYSDIR)/win_resource.rc $(SYSDIR)/win_manifest.xml
+# 	$(DO_WINDRES)
+
+# $(B)/ded/%.o: $(NDIR)/%.c
+# 	$(DO_DED_CC)
+
+# $(B)/ded/%.o: $(RGL1DIR)/%.c
+# 	$(DO_DED_CC)
+
+# # Extra dependencies to ensure the git version is incorporated
+# ifeq ($(USE_GIT),1)
+#   $(B)/client/common.o : .git
+#   $(B)/ded/common.o : .git
+# endif
+
+
+# #############################################################################
+# # MISC
+# #############################################################################
+
+# OBJ = $(Q3OBJ) $(Q3ROBJ) $(Q3R2OBJ) $(Q3DOBJ) $(JPGOBJ) $(FTOBJ) \
+# STRINGOBJ = $(Q3R2STRINGOBJ)
+
+
+# copyfiles: release
+if(${BUILD_CLIENT})
+    install(TARGETS ${CLIENTBIN}${FULLBINEXT} DESTINATION ${COPYBINDIR})
+# 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(CLIENTBIN)$(FULLBINEXT) $(COPYBINDIR)/$(CLIENTBIN)$(FULLBINEXT)
+    if(${USE_RENDERER_DLOPEN})
+# 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(RENDERER_PREFIX)opengl1_$(SHLIBNAME) $(COPYBINDIR)/$(RENDERER_PREFIX)opengl1_$(SHLIBNAME)
+        if(${BUILD_RENDERER_OPENGL2})
+            install(TARGETS ${RENDERER_PREFIX}opengl2_${SHLIBNAME} DESTINATION ${COPYBINDIR})
+# 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(RENDERER_PREFIX)opengl2_$(SHLIBNAME) $(COPYBINDIR)/$(RENDERER_PREFIX)opengl2_$(SHLIBNAME)
+        endif()
+   else()
+#     ifneq ($(BUILD_RENDERER_OPENGL2),0)
+# 	$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(CLIENTBIN)_opengl2$(FULLBINEXT) $(COPYBINDIR)/$(CLIENTBIN)_opengl2$(FULLBINEXT)
+#     endif
+   endif()
+endif()
+
+# ifneq ($(BUILD_SERVER),0)
+# 	@if [ -f $(BR)/$(SERVERBIN)$(FULLBINEXT) ]; then \
+# 		$(INSTALL) $(STRIP_FLAG) -m 0755 $(BR)/$(SERVERBIN)$(FULLBINEXT) $(COPYBINDIR)/$(SERVERBIN)$(FULLBINEXT); \
+# 	fi
+# endif
+
+# clean: clean-debug clean-release
+# ifeq ($(PLATFORM),mingw32)
+# 	@$(MAKE) -C $(NSISDIR) clean
+# endif
+
+# clean-debug:
+# 	@$(MAKE) clean2 B=$(BD)
+
+# clean-release:
+# 	@$(MAKE) clean2 B=$(BR)
+
+# clean2:
+# 	@echo "CLEAN $(B)"
+# 	@rm -f $(OBJ)
+# 	@rm -f $(OBJ_D_FILES)
+# 	@rm -f $(STRINGOBJ)
+# 	@rm -f $(TARGETS)
+
+# toolsclean: toolsclean-debug toolsclean-release
+
+# toolsclean-debug:
+# 	@$(MAKE) toolsclean2 B=$(BD)
+
+# toolsclean-release:
+# 	@$(MAKE) toolsclean2 B=$(BR)
+
+# toolsclean2:
+# 	@echo "TOOLS_CLEAN $(B)"
+# 	@rm -f $(TOOLSOBJ)
+# 	@rm -f $(TOOLSOBJ_D_FILES)
+# 	@rm -f $(STRINGIFY)
+
+# distclean: clean toolsclean
+# 	@rm -rf $(BUILD_DIR)
+
+# installer: release
+# ifdef MINGW
+# 	@$(MAKE) VERSION=$(VERSION) -C $(NSISDIR) V=$(V) \
+# 		SDLDLL=$(SDLDLL) \
+# 		USE_RENDERER_DLOPEN=$(USE_RENDERER_DLOPEN) \
+# 		USE_OPENAL_DLOPEN=$(USE_OPENAL_DLOPEN) \
+# 		USE_CURL_DLOPEN=$(USE_CURL_DLOPEN) \
+# 		USE_INTERNAL_OPUS=$(USE_INTERNAL_OPUS) \
+# 		USE_INTERNAL_ZLIB=$(USE_INTERNAL_ZLIB) \
+# 		USE_INTERNAL_JPEG=$(USE_INTERNAL_JPEG)
+# endif
+
+# dist:
+# 	git archive --format zip --output $(CLIENTBIN)-$(VERSION).zip HEAD
+
+# #############################################################################
+# # DEPENDENCIES
+# #############################################################################
+
+# ifneq ($(B),)
+#   OBJ_D_FILES=$(filter %.d,$(OBJ:%.o=%.d))
+#   -include $(OBJ_D_FILES)
+# endif
+
+# .PHONY: all clean clean2 clean-debug clean-release copyfiles \
+# 	debug default dist distclean installer makedirs \
+# 	release targets \
+# 	$(OBJ_D_FILES)
+
+# # If the target name contains "clean", don't do a parallel build
+# ifneq ($(findstring clean, $(MAKECMDGOALS)),)
+# .NOTPARALLEL:
+# endif
